@@ -24,8 +24,8 @@ def test__operation(
     check_strategy_totals(
         strategy,
         total_assets=amount,
-        total_debt=0,
-        total_idle=amount,
+        total_debt=amount,
+        total_idle=0,
         total_supply=amount,
     )
 
@@ -62,8 +62,8 @@ def test_profitable_report(
     check_strategy_totals(
         strategy,
         total_assets=amount,
-        total_debt=0,
-        total_idle=amount,
+        total_debt=amount,
+        total_idle=0,
         total_supply=amount,
     )
 
@@ -87,8 +87,8 @@ def test_profitable_report(
     check_strategy_totals(
         strategy,
         total_assets=amount + profit,
-        total_debt=0,
-        total_idle=amount + profit,
+        total_debt=amount + profit,
+        total_idle=0,
         total_supply=amount + profit,
     )
 
@@ -98,8 +98,8 @@ def test_profitable_report(
     check_strategy_totals(
         strategy,
         total_assets=amount + profit,
-        total_debt=0,
-        total_idle=amount + profit,
+        total_debt=amount + profit,
+        total_idle=0,
         total_supply=amount,
     )
     assert strategy.pricePerShare() > before_pps
@@ -141,8 +141,8 @@ def test__profitable_report__with_fee(
     check_strategy_totals(
         strategy,
         total_assets=amount,
-        total_debt=0,
-        total_idle=amount,
+        total_debt=amount,
+        total_idle=0,
         total_supply=amount,
     )
 
@@ -167,8 +167,8 @@ def test__profitable_report__with_fee(
     check_strategy_totals(
         strategy,
         total_assets=amount + profit,
-        total_debt=0,
-        total_idle=amount + profit,
+        total_debt=amount + profit,
+        total_idle=0,
         total_supply=amount + profit,
     )
 
@@ -178,8 +178,8 @@ def test__profitable_report__with_fee(
     check_strategy_totals(
         strategy,
         total_assets=amount + profit,
-        total_debt=0,
-        total_idle=amount + profit,
+        total_debt=amount + profit,
+        total_idle=0,
         total_supply=amount + expected_performance_fee,
     )
 

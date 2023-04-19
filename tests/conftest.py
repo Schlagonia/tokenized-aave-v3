@@ -20,6 +20,11 @@ def amount(asset, user, whale):
     yield amount
 
 
+@pytest.fixture(scope="session")
+def aave():
+    yield Contract("0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9")
+
+
 ############ STANDARD FIXTURES ############
 
 
@@ -81,7 +86,7 @@ def weth_amount(user, weth):
 @pytest.fixture(scope="session")
 def create_strategy(management, keeper, rewards):
     def create_strategy(asset, performanceFee=0):
-        strategy = management.deploy(project.Strategy, asset, "yStrategy-Example")
+        strategy = management.deploy(project.AaveV3Lender, asset, "yStrategy-Example")
         strategy = project.IStrategyInterface.at(strategy.address)
 
         strategy.setKeeper(keeper, sender=management)
