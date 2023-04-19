@@ -37,10 +37,8 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     // to allow for reports to still work properly.
     mapping(address => uint256) public minAmountToSellMapping;
 
-    // stkAave addresses only Applicable for Mainnet.
-    IStakedAave internal constant stkAave =
-        IStakedAave(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
-    address internal constant AAVE = 0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9;
+    // The token that we get in return for deposits.
+    IAToken public aToken;
 
     constructor(
         address _asset,
@@ -194,11 +192,9 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
             ERC20(asset).balanceOf(address(this));
     }
 
+    // Claim all pending reward and sell if applicable.
+    // TODO: Dont get bricked if it cant sell a reward token?
     function _claimAndSellRewards() internal {
-        // Need to redeem any aave from StkAave if applicable before
-        // claiming rewards and staring cool down over
-        _redeemAave();
-
         //claim all rewards
         address[] memory assets = new address[](1);
         assets[0] = address(aToken);
@@ -210,9 +206,8 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
 
-            if (token == address(stkAave)) {
-                _harvestStkAave();
-            } else if (token == asset) {
+
+            if (token == asset) {
                 continue;
             } else {
                 uint256 balance = ERC20(token).balanceOf(address(this));
