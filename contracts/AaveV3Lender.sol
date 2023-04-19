@@ -193,7 +193,6 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     }
 
     // Claim all pending reward and sell if applicable.
-    // TODO: Dont get bricked if it cant sell a reward token?
     function _claimAndSellRewards() internal {
         //claim all rewards
         address[] memory assets = new address[](1);
@@ -205,7 +204,6 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         address token;
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
-
 
             if (token == asset) {
                 continue;
