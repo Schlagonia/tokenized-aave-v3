@@ -57,7 +57,6 @@ def test_profitable_report(
     # Deposit to the strategy
     deposit()
 
-
     check_strategy_totals(
         strategy,
         total_assets=amount,

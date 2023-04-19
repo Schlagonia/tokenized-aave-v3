@@ -20,7 +20,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     using SafeERC20 for ERC20;
 
     // The pool to deposit and withdraw through.
-    IPool public constant lendingPool = 
+    IPool public constant lendingPool =
         IPool(0x794a61358D6845594F94dc1DB02A252b5b4814aD);
 
     // The a Token specific rewards contract for claiming rewards.
@@ -45,7 +45,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
 
         // Make sure its a real token.
         require(address(aToken) != address(0), "!aToken");
-        
+
         // Set the rewards controller
         rewardsController = aToken.getIncentivesController();
 
@@ -59,17 +59,17 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     }
 
     /**
-    * @notice Set the uni fees for swaps.
-    * @dev External function available to management to set 
-    * the fees used in the `UniswapV3Swapper.
-    *
-    * Any incentived tokens will need a fee to be set for each 
-    * reward token that it wishes to swap on reports.
-    *
-    * @param _token0 The first token of the pair.
-    * @param _token1 The second token of the pair.
-    * @param _fee The fee to be used for the pair.
-    */
+     * @notice Set the uni fees for swaps.
+     * @dev External function available to management to set
+     * the fees used in the `UniswapV3Swapper.
+     *
+     * Any incentived tokens will need a fee to be set for each
+     * reward token that it wishes to swap on reports.
+     *
+     * @param _token0 The first token of the pair.
+     * @param _token1 The second token of the pair.
+     * @param _fee The fee to be used for the pair.
+     */
     function setUniFees(
         address _token0,
         address _token1,
@@ -79,11 +79,11 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     }
 
     /**
-    * @notice Set the min amount to sell.
-    * @dev External function available to management to set
-    * the `minAmountToSell` variable in the `UniswapV3Swapper`.
-    *
-    * @param _minAmountToSell The min amount of tokens to sell.
+     * @notice Set the min amount to sell.
+     * @dev External function available to management to set
+     * the `minAmountToSell` variable in the `UniswapV3Swapper`.
+     *
+     * @param _minAmountToSell The min amount of tokens to sell.
      */
     function setMinAmountToSell(
         uint256 _minAmountToSell
@@ -158,13 +158,15 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      * amount of 'asset' the strategy currently holds.
      */
     function _totalInvested() internal override returns (uint256 _invested) {
-        // Claim and sell any rewards to `asset`.
-        _claimAndSellRewards();
+        if (!TokenizedStrategy.isShutdown()) {
+            // Claim and sell any rewards to `asset`.
+            _claimAndSellRewards();
 
-        // deposit any loose funds
-        uint256 looseAsset = ERC20(asset).balanceOf(address(this));
-        if (looseAsset > 0 && !TokenizedStrategy.isShutdown()) {
-            lendingPool.supply(asset, looseAsset, address(this), 0);
+            // deposit any loose funds
+            uint256 looseAsset = ERC20(asset).balanceOf(address(this));
+            if (looseAsset > 0) {
+                lendingPool.supply(asset, looseAsset, address(this), 0);
+            }
         }
 
         _invested =
@@ -173,7 +175,6 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     }
 
     // Claim all pending reward and sell if applicable.
-    // TODO: Dont get bricked if it cant sell a reward token?
     function _claimAndSellRewards() internal {
         //claim all rewards
         address[] memory assets = new address[](1);
@@ -185,7 +186,6 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         address token;
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
-
 
             if (token == asset) {
                 continue;
@@ -201,22 +201,23 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     }
 
     /**
-    * @notice Manually withdraw an `_amount` from Aave.
-    * @dev To be used by management in the case of an emergency with
-    * either the strategy or Aave to manually pull funds out at whichever
-    * rate works.
-    *
-    * This should be combined with shutting down the strategy as well as 
-    * a `report`.
-    *
-    * NOTE: If a report is not called after this all withdraws will fail.
-    *
-    * @param _amount The amount of `asset` to withdraw from Aave.
+     * @notice Manually withdraw an `_amount` from Aave.
+     * @dev To be used by management in the case of an emergency with
+     * either the strategy or Aave to manually pull funds out at whichever
+     * rate works.
+     *
+     * This should be combined with shutting down the strategy as well as
+     * a `report`.
+     *
+     * NOTE: If a report is not called after this all withdraws will fail.
+     *
+     * @param _amount The amount of `asset` to withdraw from Aave.
      */
     function emergencyWithdraw(uint256 _amount) external onlyManagement {
         lendingPool.withdraw(asset, _amount, address(this));
     }
 
+    // Clone the lender for a new asset.
     function cloneAaveV3Lender(
         address _asset,
         string memory _name,
