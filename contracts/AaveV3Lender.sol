@@ -19,16 +19,15 @@ import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
 contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     using SafeERC20 for ERC20;
 
-    IProtocolDataProvider public constant protocolDataProvider =
-        IProtocolDataProvider(0x7B4EB56E7CD4b454BA8ff71E4518426369a138a3);
-    IPool public lendingPool;
-    IRewardsController public rewardsController;
-    IAToken public aToken;
+    // The pool to deposit and withdraw through.
+    IPool public constant lendingPool = 
+        IPool(0x794a61358D6845594F94dc1DB02A252b5b4814aD);
 
-    // stkAave addresses only Applicable for Mainnet.
-    IStakedAave internal constant stkAave =
-        IStakedAave(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
-    address internal constant AAVE = 0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9;
+    // The a Token specific rewards contract for claiming rewards.
+    IRewardsController public rewardsController;
+
+    // The token that we get in return for deposits.
+    IAToken public aToken;
 
     constructor(
         address _asset,
@@ -38,25 +37,39 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     }
 
     function initializeAaveV3Lender(address _asset) public {
+        // Make sure we are not already initialized.
         require(address(aToken) == address(0), "already initialized");
 
-        lendingPool = IPool(
-            protocolDataProvider.ADDRESSES_PROVIDER().getPool()
-        );
+        // Set the aToken based on the asset we are using.
         aToken = IAToken(lendingPool.getReserveData(asset).aTokenAddress);
 
+        // Make sure its a real token.
         require(address(aToken) != address(0), "!aToken");
-
+        
+        // Set the rewards controller
         rewardsController = aToken.getIncentivesController();
 
+        // Make approve the lending pool for cheaper deposits.
         ERC20(_asset).safeApprove(address(lendingPool), type(uint256).max);
 
         // Set uni swapper values
         minAmountToSell = 1e4;
-        base = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        base = 0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619;
         router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     }
 
+    /**
+    * @notice Set the uni fees for swaps.
+    * @dev External function available to management to set 
+    * the fees used in the `UniswapV3Swapper.
+    *
+    * Any incentived tokens will need a fee to be set for each 
+    * reward token that it wishes to swap on reports.
+    *
+    * @param _token0 The first token of the pair.
+    * @param _token1 The second token of the pair.
+    * @param _fee The fee to be used for the pair.
+    */
     function setUniFees(
         address _token0,
         address _token1,
@@ -65,6 +78,13 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         _setUniFees(_token0, _token1, _fee);
     }
 
+    /**
+    * @notice Set the min amount to sell.
+    * @dev External function available to management to set
+    * the `minAmountToSell` variable in the `UniswapV3Swapper`.
+    *
+    * @param _minAmountToSell The min amount of tokens to sell.
+     */
     function setMinAmountToSell(
         uint256 _minAmountToSell
     ) external onlyManagement {
@@ -152,11 +172,9 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
             ERC20(asset).balanceOf(address(this));
     }
 
+    // Claim all pending reward and sell if applicable.
+    // TODO: Dont get bricked if it cant sell a reward token?
     function _claimAndSellRewards() internal {
-        // Need to redeem any aave from StkAave if applicable before
-        // claiming rewards and staring cool down over
-        _redeemAave();
-
         //claim all rewards
         address[] memory assets = new address[](1);
         assets[0] = address(aToken);
@@ -168,9 +186,8 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
 
-            if (token == address(stkAave)) {
-                _harvestStkAave();
-            } else if (token == asset) {
+
+            if (token == asset) {
                 continue;
             } else {
                 _swapFrom(
@@ -183,56 +200,19 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         }
     }
 
-    function _redeemAave() internal {
-        if (!_checkCooldown()) {
-            return;
-        }
-
-        uint256 stkAaveBalance = ERC20(address(stkAave)).balanceOf(
-            address(this)
-        );
-
-        if (stkAaveBalance > 0) {
-            stkAave.redeem(address(this), stkAaveBalance);
-        }
-
-        // sell AAVE for want
-        _swapFrom(AAVE, asset, ERC20(AAVE).balanceOf(address(this)), 0);
-    }
-
-    function _checkCooldown() internal view returns (bool) {
-        if (block.chainid != 1) {
-            return false;
-        }
-
-        uint256 cooldownStartTimestamp = IStakedAave(stkAave).stakersCooldowns(
-            address(this)
-        );
-
-        if (cooldownStartTimestamp == 0) return false;
-
-        uint256 COOLDOWN_SECONDS = IStakedAave(stkAave).COOLDOWN_SECONDS();
-        uint256 UNSTAKE_WINDOW = IStakedAave(stkAave).UNSTAKE_WINDOW();
-        if (block.timestamp >= cooldownStartTimestamp + COOLDOWN_SECONDS) {
-            return
-                block.timestamp - (cooldownStartTimestamp + COOLDOWN_SECONDS) <=
-                UNSTAKE_WINDOW;
-        } else {
-            return false;
-        }
-    }
-
-    function _harvestStkAave() internal {
-        // request start of cooldown period
-        if (ERC20(address(stkAave)).balanceOf(address(this)) > 0) {
-            stkAave.cooldown();
-        }
-    }
-
-    function manualRedeemAave() external onlyKeepers {
-        _redeemAave();
-    }
-
+    /**
+    * @notice Manually withdraw an `_amount` from Aave.
+    * @dev To be used by management in the case of an emergency with
+    * either the strategy or Aave to manually pull funds out at whichever
+    * rate works.
+    *
+    * This should be combined with shutting down the strategy as well as 
+    * a `report`.
+    *
+    * NOTE: If a report is not called after this all withdraws will fail.
+    *
+    * @param _amount The amount of `asset` to withdraw from Aave.
+     */
     function emergencyWithdraw(uint256 _amount) external onlyManagement {
         lendingPool.withdraw(asset, _amount, address(this));
     }
@@ -244,7 +224,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         address _performanceFeeRecipient,
         address _keeper
     ) external returns (address newLender) {
-        // Use the cloning logic held withen the Base library.
+        // Use the cloning logic held withen the Tokenized Strategy.
         newLender = TokenizedStrategy.clone(
             _asset,
             _name,
@@ -252,6 +232,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
             _performanceFeeRecipient,
             _keeper
         );
+
         // Neeed to cast address to payable since there is a fallback function.
         AaveV3Lender(payable(newLender)).initializeAaveV3Lender(_asset);
     }

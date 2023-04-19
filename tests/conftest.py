@@ -22,7 +22,7 @@ def amount(asset, user, whale):
 
 @pytest.fixture(scope="session")
 def aave():
-    yield Contract("0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9")
+    yield Contract("0xD6DF932A45C0f255f85145f286eA0b292B21C90B")
 
 
 ############ STANDARD FIXTURES ############
@@ -56,9 +56,9 @@ def keeper(accounts):
 @pytest.fixture(scope="session")
 def tokens():
     tokens = {
-        "weth": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
-        "dai": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
-        "usdc": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "weth": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
+        "dai": "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
+        "usdc": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
     }
     yield tokens
 
@@ -79,7 +79,7 @@ def weth(tokens):
 @pytest.fixture(scope="session")
 def weth_amount(user, weth):
     weth_amount = 10 ** weth.decimals()
-    user.transfer(weth, weth_amount)
+
     yield weth_amount
 
 
