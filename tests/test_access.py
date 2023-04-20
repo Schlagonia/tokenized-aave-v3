@@ -49,6 +49,22 @@ def test__set_uni_fees__reverts(
     assert strategy.uniFees(weth, aave) == 0
 
 
+def test__dont_sell(
+    strategy,
+    aave,
+    management,
+):
+    assert strategy.dontSell(aave) == False
+
+    strategy.setDontSell(aave, True, sender=management)
+
+    assert strategy.dontSell(aave) == True
+
+    strategy.setDontSell(aave, False, sender=management)
+
+    assert strategy.dontSell(aave) == False
+
+
 def test__set_min_amount_to_sell(
     strategy,
     management,
@@ -66,6 +82,19 @@ def test__set_min_amount_to_sell(
     strategy.setMinAmountToSell(amount, sender=management)
 
     assert strategy.minAmountToSell() == amount
+
+
+def test__set_dont_sell__reverts(
+    strategy,
+    aave,
+    user,
+):
+    assert strategy.dontSell(aave) == False
+
+    with reverts("!Authorized"):
+        strategy.setDontSell(aave, True, sender=user)
+
+    assert strategy.dontSell(aave) == False
 
 
 def test__set_min_amount_to_sell__reverts(

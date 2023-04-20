@@ -29,6 +29,12 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     // The token that we get in return for deposits.
     IAToken public aToken;
 
+    // Mapping to be set by management for any reward tokens
+    // that should not or can not be sold. This can be used
+    // if selling a reward token is reverting to allow for
+    // reports to still work properly.
+    mapping(address => bool) public dontSell;
+
     constructor(
         address _asset,
         string memory _name
@@ -41,7 +47,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         require(address(aToken) == address(0), "already initialized");
 
         // Set the aToken based on the asset we are using.
-        aToken = IAToken(lendingPool.getReserveData(asset).aTokenAddress);
+        aToken = IAToken(lendingPool.getReserveData(_asset).aTokenAddress);
 
         // Make sure its a real token.
         require(address(aToken) != address(0), "!aToken");
@@ -187,7 +193,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
 
-            if (token == asset) {
+            if (token == asset || dontSell[token]) {
                 continue;
             } else {
                 _swapFrom(
@@ -198,6 +204,20 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
                 );
             }
         }
+    }
+
+    /**
+     * @notice Set the `dontSell` mapping for a specific `_token`.
+     * @dev This can be used by management to adjust wether or not the
+     * _calimAndSellRewards() function will attempt to sell a specific
+     * reward token. This can be used if liquidity is to low, amounts
+     * are to low or any other reason that may cause reverts.
+     *
+     * @param _token The address of the token to adjust.
+     * @param _sell Bool to set the mapping to for `_token`.
+     */
+    function setDontSell(address _token, bool _sell) external onlyManagement {
+        dontSell[_token] = _sell;
     }
 
     /**
