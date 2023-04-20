@@ -40,6 +40,12 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     // The token that we get in return for deposits.
     IAToken public aToken;
 
+    // Mapping to be set by management for any reward tokens
+    // that should not or can not be sold. This can be used
+    // if selling a reward token is reverting to allow for
+    // reports to still work properly.
+    mapping(address => bool) public dontSell;
+
     constructor(
         address _asset,
         string memory _name
@@ -205,7 +211,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
 
-            if (token == asset) {
+            if (token == asset || dontSell[token]) {
                 continue;
             } else {
                 uint256 balance = ERC20(token).balanceOf(address(this));

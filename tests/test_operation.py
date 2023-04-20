@@ -65,12 +65,9 @@ def test_profitable_report(
 
     assert profit >= 0
 
-<<<<<<< HEAD
     performance_fees = profit * strategy.performanceFee() // MAX_BPS
 
     # TODO: Implement logic so totalDebt == amount + profit
-=======
->>>>>>> build: polygon version
     check_strategy_totals(
         strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
     )
