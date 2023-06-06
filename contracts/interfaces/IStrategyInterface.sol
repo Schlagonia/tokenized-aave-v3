@@ -12,14 +12,4 @@ interface IStrategyInterface is IStrategy, IUniswapV3Swapper {
     function setMinAmountToSell(uint256 _minAmountToSell) external;
 
     function manualRedeemAave() external;
-
-    function emergencyWithdraw(uint256 _amount) external;
-
-    function cloneAaveV3Lender(
-        address _asset,
-        string memory _name,
-        address _management,
-        address _performanceFeeRecipient,
-        address _keeper
-    ) external returns (address newLender);
 }

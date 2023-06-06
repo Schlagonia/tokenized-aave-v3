@@ -85,7 +85,7 @@ def weth_amount(user, weth):
 
 @pytest.fixture(scope="session")
 def create_strategy(management, keeper, rewards):
-    def create_strategy(asset, performanceFee=0):
+    def create_strategy(asset, performanceFee=1_000):
         strategy = management.deploy(project.AaveV3Lender, asset, "yStrategy-Example")
         strategy = project.IStrategyInterface.at(strategy.address)
 
@@ -96,6 +96,18 @@ def create_strategy(management, keeper, rewards):
         return strategy
 
     yield create_strategy
+
+
+@pytest.fixture(scope="session")
+def create_factory(management, keeper, rewards):
+    def create_factory(asset, performanceFee=1_000):
+        factory = management.deploy(
+            project.AaveV3LenderFactory, asset, "Strategy example"
+        )
+
+        return factory
+
+    yield create_factory
 
 
 @pytest.fixture(scope="session")
@@ -113,6 +125,13 @@ def strategy(asset, create_strategy):
     strategy = create_strategy(asset)
 
     yield strategy
+
+
+@pytest.fixture(scope="session")
+def factory(asset, create_factory):
+    factory = create_factory(asset)
+
+    yield factory
 
 
 @pytest.fixture(scope="session")

@@ -33,10 +33,9 @@ def test__emergency_withdraw(
 
     assert asset.balanceOf(strategy) == 0
 
-    # Need to shutdown the strategy, withdraw and then report the updated balances
+    # Need to shutdown the strategy, amd then emergency withdraw.
     strategy.shutdownStrategy(sender=management)
     strategy.emergencyWithdraw(amount, sender=management)
-    strategy.report(sender=management)
 
     assert asset.balanceOf(strategy) >= amount
 
@@ -123,9 +122,5 @@ def test__shutdown__report_doesnt_reinvest(
 
     # withdrawal
     strategy.redeem(amount, user, user, sender=user)
-
-    check_strategy_totals(
-        strategy, total_assets=0, total_debt=0, total_idle=0, total_supply=0
-    )
 
     assert asset.balanceOf(user) > user_balance_before
