@@ -14,7 +14,7 @@ import {IProtocolDataProvider} from "./interfaces/Aave/V3/IProtocolDataProvider.
 import {IRewardsController} from "./interfaces/Aave/V3/IRewardsController.sol";
 
 // Uniswap V3 Swapper
-import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
+import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol"; // TODO: use different swapper
 
 contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     using SafeERC20 for ERC20;
@@ -53,7 +53,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
 
         // Set uni swapper values
         minAmountToSell = 1e4;
-        base = 0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619;
+        base = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
         router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     }
 

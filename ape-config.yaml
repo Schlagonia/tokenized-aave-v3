@@ -6,9 +6,9 @@ plugins:
   - name: hardhat
   - name: infura
   - name: alchemy
-  - name: polygon
+  - name: avalanche
   
-default_ecosystem: polygon
+default_ecosystem: avalanche
 
 dependencies:
   - name: openzeppelin
@@ -30,13 +30,13 @@ solidity:
     - "@tokenized-strategy=tokenized-strategy/3.0.1-beta"
     - "@periphery=periphery/master"
 
-polygon:
+avalanche:
   default_network: mainnet-fork
   mainnet_fork:
     default_provider: hardhat
 
 hardhat:
   fork:
-    polygon:
+    avalanche:
       mainnet:
-        upstream_provider: alchemy
+        upstream_provider: https://api.avax.network/ext/bc/C/rpc

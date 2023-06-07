@@ -9,60 +9,59 @@ def test__set_uni_fees(
     asset,
     strategy,
     management,
-    aave,
-    weth,
+    wavax,
 ):
     # Everything should start as 0
-    assert strategy.uniFees(aave, weth) == 0
-    assert strategy.uniFees(weth, aave) == 0
+    assert strategy.uniFees(wavax, asset) == 0
+    assert strategy.uniFees(asset, wavax) == 0
 
-    strategy.setUniFees(aave, weth, 500, sender=management)
+    strategy.setUniFees(wavax, asset, 500, sender=management)
 
-    assert strategy.uniFees(aave, weth) == 500
-    assert strategy.uniFees(weth, aave) == 500
+    assert strategy.uniFees(wavax, asset) == 500
+    assert strategy.uniFees(asset, wavax) == 500
 
-    strategy.setUniFees(weth, aave, 5, sender=management)
+    strategy.setUniFees(asset, wavax, 5, sender=management)
 
-    assert strategy.uniFees(aave, weth) == 5
-    assert strategy.uniFees(weth, aave) == 5
+    assert strategy.uniFees(wavax, asset) == 5
+    assert strategy.uniFees(asset, wavax) == 5
 
-    strategy.setUniFees(weth, aave, 0, sender=management)
+    strategy.setUniFees(asset, wavax, 0, sender=management)
 
-    assert strategy.uniFees(aave, weth) == 0
-    assert strategy.uniFees(weth, aave) == 0
+    assert strategy.uniFees(wavax, asset) == 0
+    assert strategy.uniFees(asset, wavax) == 0
 
 
 def test__set_uni_fees__reverts(
     strategy,
     user,
-    aave,
-    weth,
+    wavax,
+    asset,
 ):
     # Everything should start as 0
-    assert strategy.uniFees(aave, weth) == 0
-    assert strategy.uniFees(weth, aave) == 0
+    assert strategy.uniFees(wavax, asset) == 0
+    assert strategy.uniFees(asset, wavax) == 0
 
     with reverts("!Authorized"):
-        strategy.setUniFees(weth, aave, 500, sender=user)
+        strategy.setUniFees(asset, wavax, 500, sender=user)
 
-    assert strategy.uniFees(aave, weth) == 0
-    assert strategy.uniFees(weth, aave) == 0
+    assert strategy.uniFees(wavax, asset) == 0
+    assert strategy.uniFees(asset, wavax) == 0
 
 
 def test__dont_sell(
     strategy,
-    aave,
+    wavax,
     management,
 ):
-    assert strategy.dontSell(aave) == False
+    assert strategy.dontSell(wavax) == False
 
-    strategy.setDontSell(aave, True, sender=management)
+    strategy.setDontSell(wavax, True, sender=management)
 
-    assert strategy.dontSell(aave) == True
+    assert strategy.dontSell(wavax) == True
 
-    strategy.setDontSell(aave, False, sender=management)
+    strategy.setDontSell(wavax, False, sender=management)
 
-    assert strategy.dontSell(aave) == False
+    assert strategy.dontSell(wavax) == False
 
 
 def test__set_min_amount_to_sell(
@@ -86,15 +85,15 @@ def test__set_min_amount_to_sell(
 
 def test__set_dont_sell__reverts(
     strategy,
-    aave,
+    wavax,
     user,
 ):
-    assert strategy.dontSell(aave) == False
+    assert strategy.dontSell(wavax) == False
 
     with reverts("!Authorized"):
-        strategy.setDontSell(aave, True, sender=user)
+        strategy.setDontSell(wavax, True, sender=user)
 
-    assert strategy.dontSell(aave) == False
+    assert strategy.dontSell(wavax) == False
 
 
 def test__set_min_amount_to_sell__reverts(

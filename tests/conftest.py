@@ -21,8 +21,8 @@ def amount(asset, user, whale):
 
 
 @pytest.fixture(scope="session")
-def aave():
-    yield Contract("0xD6DF932A45C0f255f85145f286eA0b292B21C90B")
+def wavax():
+    yield Contract("0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7")
 
 
 ############ STANDARD FIXTURES ############
@@ -56,9 +56,9 @@ def keeper(accounts):
 @pytest.fixture(scope="session")
 def tokens():
     tokens = {
-        "weth": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619",
-        "dai": "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063",
-        "usdc": "0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174",
+        "weth": "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7",  # This is wavax
+        "dai": "0xd586E7F844cEa2F87f50152665BCbc2C279D8d70",
+        "usdc": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E",
     }
     yield tokens
 
@@ -66,9 +66,7 @@ def tokens():
 @pytest.fixture(scope="session")
 def whale(accounts):
     # In order to get some funds for the token you are about to use,
-    # The Balancer vault stays steady ballin on almost all tokens
-    # NOTE: If `asset` is a balancer pool this may cause issues on amount checks.
-    yield accounts["0xBA12222222228d8Ba445958a75a0704d566BF2C8"]
+    yield accounts["0x6001CE416FF9801dba27c6eb217DfD7C258f6d27"]
 
 
 @pytest.fixture(scope="session")
