@@ -182,7 +182,9 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
             ERC20(asset).balanceOf(address(this));
     }
 
-    // Claim all pending reward and sell if applicable.
+    /**
+     * @notice Used to claim any pending rewards and sell them to asset.
+     */
     function _claimAndSellRewards() internal {
         //claim all rewards
         address[] memory assets = new address[](1);

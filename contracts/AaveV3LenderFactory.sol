@@ -18,6 +18,13 @@ contract AaveV3LenderFactory {
         newAaveV3Lender(_asset, _name, msg.sender, msg.sender, msg.sender);
     }
 
+    /**
+     * @notice Deploye a new Aave V3 Lender.
+     * @dev This will set the msg.sender to all of the permisioned roles.
+     * @param _asset The underlying asset for the lender to use.
+     * @param _name The name for the lender to use.
+     * @return . The address of the new lender.
+     */
     function newAaveV3Lender(
         address _asset,
         string memory _name
@@ -26,6 +33,16 @@ contract AaveV3LenderFactory {
             newAaveV3Lender(_asset, _name, msg.sender, msg.sender, msg.sender);
     }
 
+    /**
+     * @notice Deploye a new Aave V3 Lender.
+     * @dev This will allow custom roles to be set after deployment.
+     * @param _asset The underlying asset for the lender to use.
+     * @param _name The name for the lender to use.
+     * @param _performanceFeeRecipient The address to receive performance fees.
+     * @param _keeper The address to set as the keeper.
+     * @param _management The address to own the lender.
+     * @return . The address of the new lender.
+     */
     function newAaveV3Lender(
         address _asset,
         string memory _name,
