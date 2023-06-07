@@ -38,7 +38,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     mapping(address => uint256) public minAmountToSellMapping;
 
     // The token that we get in return for deposits.
-    IAToken public aToken;
+    IAToken public immutable aToken;
 
     // Mapping to be set by management for any reward tokens
     // that should not or can not be sold. This can be used

@@ -7,16 +7,20 @@ import {IUniswapV3Swapper} from "@periphery/swappers/interfaces/IUniswapV3Swappe
 interface IStrategyInterface is IStrategy, IUniswapV3Swapper {
     function manualRedeemAave() external;
 
+<<<<<<< HEAD
     function claimRewards() external view returns (bool);
 
     function minAmountToSellMapping(
         address _token
     ) external view returns (uint256);
 
+=======
+>>>>>>> build: new version
     function setUniFees(address _token0, address _token1, uint24 _fee) external;
 
     function setMinAmountToSell(uint256 _minAmountToSell) external;
 
+<<<<<<< HEAD
     function sellRewardManually(address _token, uint256 _minAmountOut) external;
 
     function setMinAmountToSellMapping(
@@ -25,4 +29,7 @@ interface IStrategyInterface is IStrategy, IUniswapV3Swapper {
     ) external;
 
     function setClaimRewards(bool _bool) external;
+=======
+    function setDontSell(address _token, bool _sell) external;
+>>>>>>> build: new version
 }
