@@ -2,6 +2,7 @@ import ape
 from ape import Contract, reverts
 from utils.checks import check_strategy_totals, check_strategy_mins
 from utils.utils import days_to_secs, increase_time
+from utils.constants import MAX_BPS
 import pytest
 
 
@@ -33,10 +34,9 @@ def test__emergency_withdraw(
 
     assert asset.balanceOf(strategy) == 0
 
-    # Need to shutdown the strategy, withdraw and then report the updated balances
+    # Need to shutdown the strategy, and withdraw
     strategy.shutdownStrategy(sender=management)
     strategy.emergencyWithdraw(amount, sender=management)
-    strategy.report(sender=management)
 
     assert asset.balanceOf(strategy) >= amount
 
@@ -107,6 +107,8 @@ def test__shutdown__report_doesnt_reinvest(
     profit, loss = tx.return_value
     assert profit > 0
 
+    performance_fees = profit * strategy.performanceFee() // MAX_BPS
+
     check_strategy_totals(
         strategy,
         total_assets=amount + profit,
@@ -123,9 +125,5 @@ def test__shutdown__report_doesnt_reinvest(
 
     # withdrawal
     strategy.redeem(amount, user, user, sender=user)
-
-    check_strategy_totals(
-        strategy, total_assets=0, total_debt=0, total_idle=0, total_supply=0
-    )
 
     assert asset.balanceOf(user) > user_balance_before

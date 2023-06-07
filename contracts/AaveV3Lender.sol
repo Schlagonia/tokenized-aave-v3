@@ -24,10 +24,10 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         IPool(0x794a61358D6845594F94dc1DB02A252b5b4814aD);
 
     // The a Token specific rewards contract for claiming rewards.
-    IRewardsController public rewardsController;
+    IRewardsController public immutable rewardsController;
 
     // The token that we get in return for deposits.
-    IAToken public aToken;
+    IAToken public immutable aToken;
 
     // Mapping to be set by management for any reward tokens
     // that should not or can not be sold. This can be used
@@ -39,13 +39,6 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         address _asset,
         string memory _name
     ) BaseTokenizedStrategy(_asset, _name) {
-        initializeAaveV3Lender(_asset);
-    }
-
-    function initializeAaveV3Lender(address _asset) public {
-        // Make sure we are not already initialized.
-        require(address(aToken) == address(0), "already initialized");
-
         // Set the aToken based on the asset we are using.
         aToken = IAToken(lendingPool.getReserveData(_asset).aTokenAddress);
 
@@ -102,7 +95,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     //////////////////////////////////////////////////////////////*/
 
     /**
-     * @dev Should invest up to '_amount' of 'asset'.
+     * @dev Should deploy up to '_amount' of 'asset' in the yield source.
      *
      * This function is called at the end of a {deposit} or {mint}
      * call. Meaning that unless a whitelist is implemented it will
@@ -112,7 +105,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      * @param _amount The amount of 'asset' that the strategy should attemppt
      * to deposit in the yield source.
      */
-    function _invest(uint256 _amount) internal override {
+    function _deployFunds(uint256 _amount) internal override {
         lendingPool.supply(asset, _amount, address(this), 0);
     }
 
@@ -147,23 +140,32 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     }
 
     /**
-     * @dev Internal non-view function to harvest all rewards, reinvest
-     * and return the accurate amount of funds currently held by the Strategy.
+     * @dev Internal function to harvest all rewards, redeploy any idle
+     * funds and return an accurate accounting of all funds currently
+     * held by the Strategy.
      *
      * This should do any needed harvesting, rewards selling, accrual,
-     * reinvesting etc. to get the most accurate view of current assets.
+     * redepositing etc. to get the most accurate view of current assets.
      *
-     * All applicable assets including loose assets should be accounted
-     * for in this function.
+     * NOTE: All applicable assets including loose assets should be
+     * accounted for in this function.
      *
      * Care should be taken when relying on oracles or swap values rather
      * than actual amounts as all Strategy profit/loss accounting will
      * be done based on this returned value.
      *
-     * @return _invested A trusted and accurate account for the total
-     * amount of 'asset' the strategy currently holds.
+     * This can still be called post a shutdown, a strategist can check
+     * `TokenizedStrategy.isShutdown()` to decide if funds should be
+     * redeployed or simply realize any profits/losses.
+     *
+     * @return _totalAssets A trusted and accurate account for the total
+     * amount of 'asset' the strategy currently holds including idle funds.
      */
-    function _totalInvested() internal override returns (uint256 _invested) {
+    function _harvestAndReport()
+        internal
+        override
+        returns (uint256 _totalAssets)
+    {
         if (!TokenizedStrategy.isShutdown()) {
             // Claim and sell any rewards to `asset`.
             _claimAndSellRewards();
@@ -175,7 +177,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
             }
         }
 
-        _invested =
+        _totalAssets =
             aToken.balanceOf(address(this)) +
             ERC20(asset).balanceOf(address(this));
     }
@@ -221,40 +223,27 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     }
 
     /**
-     * @notice Manually withdraw an `_amount` from Aave.
-     * @dev To be used by management in the case of an emergency with
-     * either the strategy or Aave to manually pull funds out at whichever
-     * rate works.
+     * @dev Optional function for a strategist to override that will
+     * allow management to manually withdraw deployed funds from the
+     * yield source if a strategy is shutdown.
      *
-     * This should be combined with shutting down the strategy as well as
-     * a `report`.
+     * This should attempt to free `_amount`, noting that `_amount` may
+     * be more than is currently deployed.
      *
-     * NOTE: If a report is not called after this all withdraws will fail.
+     * NOTE: This will not realize any profits or losses. A seperate
+     * {report} will be needed in order to record any profit/loss. If
+     * a report may need to be called after a shutdown it is important
+     * to check if the strategy is shutdown during {_harvestAndReport}
+     * so that it does not simply re-deploy all funds that had been freed.
      *
-     * @param _amount The amount of `asset` to withdraw from Aave.
+     * EX:
+     *   if(freeAsset > 0 && !TokenizedStrategy.isShutdown()) {
+     *       depositFunds...
+     *    }
+     *
+     * @param _amount The amount of asset to attempt to free.
      */
-    function emergencyWithdraw(uint256 _amount) external onlyManagement {
+    function _emergencyWithdraw(uint256 _amount) internal override {
         lendingPool.withdraw(asset, _amount, address(this));
-    }
-
-    // Clone the lender for a new asset.
-    function cloneAaveV3Lender(
-        address _asset,
-        string memory _name,
-        address _management,
-        address _performanceFeeRecipient,
-        address _keeper
-    ) external returns (address newLender) {
-        // Use the cloning logic held withen the Tokenized Strategy.
-        newLender = TokenizedStrategy.clone(
-            _asset,
-            _name,
-            _management,
-            _performanceFeeRecipient,
-            _keeper
-        );
-
-        // Neeed to cast address to payable since there is a fallback function.
-        AaveV3Lender(payable(newLender)).initializeAaveV3Lender(_asset);
     }
 }
