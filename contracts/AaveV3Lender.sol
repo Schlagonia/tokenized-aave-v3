@@ -21,9 +21,9 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
 
     IProtocolDataProvider public constant protocolDataProvider =
         IProtocolDataProvider(0x7B4EB56E7CD4b454BA8ff71E4518426369a138a3);
-    IPool public lendingPool;
-    IRewardsController public rewardsController;
-    IAToken public aToken;
+    IPool public immutable lendingPool;
+    IRewardsController public immutable rewardsController;
+    IAToken public immutable aToken;
 
     // stkAave addresses only Applicable for Mainnet.
     IStakedAave internal constant stkAave =
@@ -34,12 +34,10 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         address _asset,
         string memory _name
     ) BaseTokenizedStrategy(_asset, _name) {
-        require(address(aToken) == address(0), "already initialized");
-
         lendingPool = IPool(
             protocolDataProvider.ADDRESSES_PROVIDER().getPool()
         );
-        aToken = IAToken(lendingPool.getReserveData(asset).aTokenAddress);
+        aToken = IAToken(lendingPool.getReserveData(_asset).aTokenAddress);
 
         require(address(aToken) != address(0), "!aToken");
 

@@ -1,4 +1,4 @@
-name: tokenized-strategy-ape-mix
+name: tokenized-strategy-aave-v3
 
 plugins:
   - name: solidity

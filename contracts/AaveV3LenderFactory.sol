@@ -21,7 +21,7 @@ contract AaveV3LenderFactory {
     function newAaveV3Lender(
         address _asset,
         string memory _name
-    ) public returns (address) {
+    ) external returns (address) {
         return
             newAaveV3Lender(_asset, _name, msg.sender, msg.sender, msg.sender);
     }
@@ -33,6 +33,8 @@ contract AaveV3LenderFactory {
         address _keeper,
         address _management
     ) public returns (address) {
+        // We need to use the custom interface with the
+        // tokenized strategies available setters.
         IStrategy newStrategy = IStrategy(
             address(new AaveV3Lender(_asset, _name))
         );
