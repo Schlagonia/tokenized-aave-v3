@@ -13,15 +13,20 @@ import {IPool} from "./interfaces/Aave/V3/IPool.sol";
 import {IProtocolDataProvider} from "./interfaces/Aave/V3/IProtocolDataProvider.sol";
 import {IRewardsController} from "./interfaces/Aave/V3/IRewardsController.sol";
 
-// Uniswap V3 Swapper
-import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol"; // TODO: use different swapper
+import {IUniswapV2Router02} from "./interfaces/uniswap/IUniswapV2Router02.sol";
 
-contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
+contract AaveV3Lender is BaseTokenizedStrategy {
     using SafeERC20 for ERC20;
 
+    // WAVAX
+    address internal constant BASE = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
     // The pool to deposit and withdraw through.
     IPool public constant lendingPool =
         IPool(0x794a61358D6845594F94dc1DB02A252b5b4814aD);
+
+    // Uni V2 router to sell rewards through.
+    IUniswapV2Router02 public constant router =
+        IUniswapV2Router02(0x60aE616a2155Ee3d9A68541Ba4544862310933d4);
 
     // The a Token specific rewards contract for claiming rewards.
     IRewardsController public immutable rewardsController;
@@ -34,6 +39,9 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     // if selling a reward token is reverting to allow for
     // reports to still work properly.
     mapping(address => bool) public dontSell;
+
+    // Minimum amount of rewards the strategy will try and sell.
+    uint256 public minAmountToSell;
 
     constructor(
         address _asset,
@@ -52,29 +60,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         ERC20(_asset).safeApprove(address(lendingPool), type(uint256).max);
 
         // Set uni swapper values
-        minAmountToSell = 1e4;
-        base = 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7;
-        router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
-    }
-
-    /**
-     * @notice Set the uni fees for swaps.
-     * @dev External function available to management to set
-     * the fees used in the `UniswapV3Swapper.
-     *
-     * Any incentived tokens will need a fee to be set for each
-     * reward token that it wishes to swap on reports.
-     *
-     * @param _token0 The first token of the pair.
-     * @param _token1 The second token of the pair.
-     * @param _fee The fee to be used for the pair.
-     */
-    function setUniFees(
-        address _token0,
-        address _token1,
-        uint24 _fee
-    ) external onlyManagement {
-        _setUniFees(_token0, _token1, _fee);
+        minAmountToSell = 1e10;
     }
 
     /**
@@ -208,6 +194,64 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
                 );
             }
         }
+    }
+
+    function _swapFrom(
+        address _from,
+        address _to,
+        uint256 _amountIn,
+        uint256 _amountOut
+    ) internal {
+        if (_amountIn <= minAmountToSell) return;
+
+        _checkAllowance(address(router), _from, _amountIn);
+
+        router.swapExactTokensForTokens(
+            _amountIn,
+            _amountOut,
+            _getTokenOutPath(_from, _to),
+            address(this),
+            block.timestamp
+        );
+    }
+
+    function _getTokenOutPath(
+        address _tokenIn,
+        address _tokenOut
+    ) internal pure returns (address[] memory _path) {
+        bool isNative = _tokenIn == BASE || _tokenOut == BASE;
+        _path = new address[](isNative ? 2 : 3);
+        _path[0] = _tokenIn;
+
+        if (isNative) {
+            _path[1] = _tokenOut;
+        } else {
+            _path[1] = BASE;
+            _path[2] = _tokenOut;
+        }
+    }
+
+    function _checkAllowance(
+        address _contract,
+        address _token,
+        uint256 _amount
+    ) internal {
+        if (ERC20(_token).allowance(address(this), _contract) < _amount) {
+            ERC20(_token).approve(_contract, 0);
+            ERC20(_token).approve(_contract, _amount);
+        }
+    }
+
+    /**
+     * @notice Allows `management` to manually swap a token the strategy holds.
+     * @dev This can be used if the rewards controller has since removed a reward
+     * token so the normal harvest flow doesnt work. Or for retroactive airdrops.
+     * @param _token The address of the token to sell.
+     */
+    function sellRewardManually(address _token) external onlyManagement {
+        uint256 balance = ERC20(_token).balanceOf(address(this));
+        // Swap from will do min check
+        _swapFrom(_token, asset, balance, 0);
     }
 
     /**

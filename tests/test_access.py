@@ -5,49 +5,6 @@ from utils.utils import days_to_secs
 import pytest
 
 
-def test__set_uni_fees(
-    asset,
-    strategy,
-    management,
-    wavax,
-):
-    # Everything should start as 0
-    assert strategy.uniFees(wavax, asset) == 0
-    assert strategy.uniFees(asset, wavax) == 0
-
-    strategy.setUniFees(wavax, asset, 500, sender=management)
-
-    assert strategy.uniFees(wavax, asset) == 500
-    assert strategy.uniFees(asset, wavax) == 500
-
-    strategy.setUniFees(asset, wavax, 5, sender=management)
-
-    assert strategy.uniFees(wavax, asset) == 5
-    assert strategy.uniFees(asset, wavax) == 5
-
-    strategy.setUniFees(asset, wavax, 0, sender=management)
-
-    assert strategy.uniFees(wavax, asset) == 0
-    assert strategy.uniFees(asset, wavax) == 0
-
-
-def test__set_uni_fees__reverts(
-    strategy,
-    user,
-    wavax,
-    asset,
-):
-    # Everything should start as 0
-    assert strategy.uniFees(wavax, asset) == 0
-    assert strategy.uniFees(asset, wavax) == 0
-
-    with reverts("!Authorized"):
-        strategy.setUniFees(asset, wavax, 500, sender=user)
-
-    assert strategy.uniFees(wavax, asset) == 0
-    assert strategy.uniFees(asset, wavax) == 0
-
-
 def test__dont_sell(
     strategy,
     wavax,
@@ -68,7 +25,7 @@ def test__set_min_amount_to_sell(
     strategy,
     management,
 ):
-    assert strategy.minAmountToSell() == 1e4
+    assert strategy.minAmountToSell() == 1e10
 
     amount = 0
 
@@ -81,6 +38,28 @@ def test__set_min_amount_to_sell(
     strategy.setMinAmountToSell(amount, sender=management)
 
     assert strategy.minAmountToSell() == amount
+
+
+def test__manual_sell(
+    strategy,
+    management,
+    whale,
+    asset,
+    wavax,
+):
+    assert strategy.asset() != wavax.address
+
+    amount = int(2e18)
+
+    wavax.transfer(strategy.address, amount, sender=whale)
+
+    assert asset.balanceOf(strategy.address) == 0
+    assert wavax.balanceOf(strategy.address) == amount
+
+    strategy.sellRewardManually(wavax.address, sender=management)
+
+    assert asset.balanceOf(strategy.address) > 0
+    assert wavax.balanceOf(strategy.address) == 0
 
 
 def test__set_dont_sell__reverts(
@@ -100,12 +79,29 @@ def test__set_min_amount_to_sell__reverts(
     strategy,
     user,
 ):
-    assert strategy.minAmountToSell() == 1e4
+    assert strategy.minAmountToSell() == 1e10
 
     with reverts("!Authorized"):
         strategy.setMinAmountToSell(0, sender=user)
 
-    assert strategy.minAmountToSell() == 1e4
+    assert strategy.minAmountToSell() == 1e10
+
+
+def test__manual_sell__reverts(strategy, management, whale, asset, wavax, user):
+    assert strategy.asset() != wavax.address
+
+    amount = int(2e18)
+
+    wavax.transfer(strategy.address, amount, sender=whale)
+
+    assert asset.balanceOf(strategy.address) == 0
+    assert wavax.balanceOf(strategy.address) == amount
+
+    with reverts("!Authorized"):
+        strategy.sellRewardManually(wavax.address, sender=user)
+
+    assert asset.balanceOf(strategy.address) == 0
+    assert wavax.balanceOf(strategy.address) == amount
 
 
 def test__emergency_withdraw__reverts(strategy, user, deposit, amount):

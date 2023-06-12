@@ -186,6 +186,91 @@ def test__profitable_report__with_fee(
     assert asset.balanceOf(rewards) >= rewards_balance_before + expected_performance_fee
 
 
+def test__reward_selling(
+    chain,
+    asset,
+    tokens,
+    strategy,
+    user,
+    management,
+    rewards,
+    whale,
+    weth,
+    weth_amount,
+    amount,
+    wavax,
+    RELATIVE_APPROX,
+    keeper,
+):
+    asset.transfer(user, amount, sender=whale)
+
+    # allow any amount of swaps
+    strategy.setMinAmountToSell(0, sender=management)
+
+    # Deposit to the strategy
+    user_balance_before = asset.balanceOf(user)
+
+    # Deposit to the strategy
+    asset.approve(strategy, amount, sender=user)
+    strategy.deposit(amount, user, sender=user)
+
+    check_strategy_totals(
+        strategy,
+        total_assets=amount,
+        total_debt=amount,
+        total_idle=0,
+        total_supply=amount,
+    )
+
+    # Earn some profit
+    chain.mine(days_to_secs(5))
+
+    # Send aave to strategy
+    avax_amount = int(1e18)
+    wavax.transfer(strategy, avax_amount, sender=whale)
+    assert wavax.balanceOf(strategy) == avax_amount
+
+    before_pps = strategy.pricePerShare()
+
+    tx = strategy.report(sender=keeper)
+
+    profit, loss = tx.return_value
+
+    assert profit > 0
+
+    performance_fees = profit * strategy.performanceFee() // MAX_BPS
+
+    check_strategy_totals(
+        strategy,
+        total_assets=amount + profit,
+        total_debt=amount + profit,
+        total_idle=0,
+        total_supply=amount + profit,
+    )
+
+    assert wavax.balanceOf(strategy.address) == 0
+
+    # needed for profits to unlock
+    chain.pending_timestamp = (
+        chain.pending_timestamp + strategy.profitMaxUnlockTime() - 1
+    )
+    chain.mine(timestamp=chain.pending_timestamp)
+
+    check_strategy_totals(
+        strategy,
+        total_assets=amount + profit,
+        total_debt=amount + profit,
+        total_idle=0,
+        total_supply=amount + performance_fees,
+    )
+
+    assert strategy.pricePerShare() > before_pps
+
+    strategy.redeem(amount, user, user, sender=user)
+
+    assert asset.balanceOf(user) > user_balance_before
+
+
 def test__tend_trigger(
     chain,
     strategy,

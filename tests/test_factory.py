@@ -86,11 +86,10 @@ def test__factory_deployed__profitable_report(
     if asset == weth:
         asset = Contract(tokens["usdc"])
         amount = int(100_000e6)
-        aave_fee = 3000
+
     else:
         asset = Contract(tokens["weth"])
         amount = weth_amount
-        aave_fee = 3000
 
     tx = factory.newAaveV3Lender(
         asset, "yTest Factory", rewards, keeper, management, sender=management
@@ -103,8 +102,6 @@ def test__factory_deployed__profitable_report(
 
     strategy = project.IStrategyInterface.at(event[0].strategy)
 
-    # set uni fees for swap
-    strategy.setUniFees(wavax, asset, aave_fee, sender=management)
     # allow any amount of swaps
     strategy.setMinAmountToSell(0, sender=management)
 
@@ -166,7 +163,6 @@ def test__factory_deployed__profitable_report(
     assert asset.balanceOf(user) > user_balance_before
 
 
-"""
 def test__factory_deployed__reward_selling(
     chain,
     asset,
@@ -186,11 +182,9 @@ def test__factory_deployed__reward_selling(
     if asset == weth:
         asset = Contract(tokens["usdc"])
         amount = int(100_000e6)
-        aave_fee = 3000
     else:
         asset = Contract(tokens["weth"])
         amount = weth_amount
-        aave_fee = 3000
 
     tx = factory.newAaveV3Lender(
         asset, "yTest Factory", rewards, keeper, management, sender=management
@@ -205,8 +199,6 @@ def test__factory_deployed__reward_selling(
 
     asset.transfer(user, amount, sender=whale)
 
-    # set uni fees for swap
-    strategy.setUniFees(aave, asset, aave_fee, sender=management)
     # allow any amount of swaps
     strategy.setMinAmountToSell(0, sender=management)
 
@@ -229,12 +221,9 @@ def test__factory_deployed__reward_selling(
     chain.mine(days_to_secs(5))
 
     # Send aave to strategy
-    aave_amount = int(1e18)
-    aave.transfer(strategy, aave_amount, sender=whale)
-    assert aave.balanceOf(strategy) == aave_amount
-
-    # Simulate a staave redeem during a harvest
-    strategy.manualRedeemAave(sender=management)
+    avax_amount = int(1e18)
+    wavax.transfer(strategy, avax_amount, sender=whale)
+    assert wavax.balanceOf(strategy) == avax_amount
 
     before_pps = strategy.pricePerShare()
 
@@ -254,7 +243,7 @@ def test__factory_deployed__reward_selling(
         total_supply=amount + profit,
     )
 
-    assert aave.balanceOf(strategy.address) == 0
+    assert wavax.balanceOf(strategy.address) == 0
 
     # needed for profits to unlock
     chain.pending_timestamp = (
@@ -275,7 +264,6 @@ def test__factory_deployed__reward_selling(
     strategy.redeem(amount, user, user, sender=user)
 
     assert asset.balanceOf(user) > user_balance_before
-"""
 
 
 def test__factory_deployed__shutdown(
@@ -383,22 +371,7 @@ def test__factroy_deployed__access(
 
     asset.transfer(user, amount, sender=whale)
 
-    # Everything should start as 0
-    assert strategy.uniFees(wavax, asset) == 0
-    assert strategy.uniFees(asset, wavax) == 0
-
-    strategy.setUniFees(wavax, asset, 300, sender=management)
-
-    assert strategy.uniFees(wavax, asset) == 300
-    assert strategy.uniFees(asset, wavax) == 300
-
-    with reverts("!Authorized"):
-        strategy.setUniFees(asset, wavax, 0, sender=user)
-
-    assert strategy.uniFees(wavax, asset) == 300
-    assert strategy.uniFees(asset, wavax) == 300
-
-    assert strategy.minAmountToSell() == 1e4
+    assert strategy.minAmountToSell() == 1e10
 
     amount = 0
 
