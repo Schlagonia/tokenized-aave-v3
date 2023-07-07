@@ -37,6 +37,8 @@ def test__factory_deployed__operation(
 
     strategy = project.IStrategyInterface.at(event[0].strategy)
 
+    strategy.acceptManagement(sender=management)
+
     asset.transfer(user, amount, sender=whale)
 
     user_balance_before = asset.balanceOf(user)
@@ -101,6 +103,8 @@ def test__factory_deployed__profitable_report(
     assert event[0].asset == asset.address
 
     strategy = project.IStrategyInterface.at(event[0].strategy)
+
+    strategy.acceptManagement(sender=management)
 
     # allow any amount of swaps
     strategy.setMinAmountToSell(0, sender=management)
@@ -196,6 +200,8 @@ def test__factory_deployed__reward_selling(
     assert event[0].asset == asset.address
 
     strategy = project.IStrategyInterface.at(event[0].strategy)
+
+    strategy.acceptManagement(sender=management)
 
     asset.transfer(user, amount, sender=whale)
 
@@ -297,6 +303,8 @@ def test__factory_deployed__shutdown(
 
     strategy = project.IStrategyInterface.at(event[0].strategy)
 
+    strategy.acceptManagement(sender=management)
+
     asset.transfer(user, amount, sender=whale)
 
     user_balance_before = asset.balanceOf(user)
@@ -368,6 +376,8 @@ def test__factroy_deployed__access(
     assert event[0].asset == asset.address
 
     strategy = project.IStrategyInterface.at(event[0].strategy)
+
+    strategy.acceptManagement(sender=management)
 
     asset.transfer(user, amount, sender=whale)
 

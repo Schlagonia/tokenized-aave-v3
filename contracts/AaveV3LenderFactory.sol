@@ -8,7 +8,7 @@ interface IStrategy {
 
     function setKeeper(address) external;
 
-    function setManagement(address) external;
+    function setPendingManagement(address) external;
 }
 
 contract AaveV3LenderFactory {
@@ -60,7 +60,7 @@ contract AaveV3LenderFactory {
 
         newStrategy.setKeeper(_keeper);
 
-        newStrategy.setManagement(_management);
+        newStrategy.setPendingManagement(_management);
 
         emit NewAaveV3Lender(address(newStrategy), _asset);
         return address(newStrategy);
