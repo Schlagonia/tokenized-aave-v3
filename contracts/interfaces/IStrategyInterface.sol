@@ -31,5 +31,10 @@ interface IStrategyInterface is IStrategy, IUniswapV3Swapper {
     function setClaimRewards(bool _bool) external;
 =======
     function setDontSell(address _token, bool _sell) external;
+<<<<<<< HEAD
 >>>>>>> build: new version
+=======
+
+    function sellRewardManually(address _token) external;
+>>>>>>> chore: to recent version
 }
