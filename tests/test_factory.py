@@ -94,9 +94,7 @@ def test__factory_deployed__profitable_report(
         amount = weth_amount
         aave_fee = 3000
 
-    tx = factory.newAaveV3Lender(
-        asset, "yTest Factory", sender=management
-    )
+    tx = factory.newAaveV3Lender(asset, "yTest Factory", sender=management)
 
     event = list(tx.decode_logs(factory.NewAaveV3Lender))
 
@@ -170,7 +168,6 @@ def test__factory_deployed__profitable_report(
     assert asset.balanceOf(user) > user_balance_before
 
 
-"""
 def test__factory_deployed__reward_selling(
     chain,
     asset,
@@ -196,9 +193,7 @@ def test__factory_deployed__reward_selling(
         amount = weth_amount
         aave_fee = 3000
 
-    tx = factory.newAaveV3Lender(
-        asset, "yTest Factory", rewards, keeper, management, sender=management
-    )
+    tx = factory.newAaveV3Lender(asset, "yTest Factory", sender=management)
 
     event = list(tx.decode_logs(factory.NewAaveV3Lender))
 
@@ -239,8 +234,7 @@ def test__factory_deployed__reward_selling(
     aave.transfer(strategy, aave_amount, sender=whale)
     assert aave.balanceOf(strategy) == aave_amount
 
-    # Simulate a staave redeem during a harvest
-    strategy.manualRedeemAave(sender=management)
+    strategy.sellRewardManually(aave.address, sender=management)
 
     before_pps = strategy.pricePerShare()
 
@@ -281,7 +275,6 @@ def test__factory_deployed__reward_selling(
     strategy.redeem(amount, user, user, sender=user)
 
     assert asset.balanceOf(user) > user_balance_before
-"""
 
 
 def test__factory_deployed__shutdown(

@@ -211,6 +211,18 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     }
 
     /**
+     * @notice Allows `management` to manually swap a token the strategy holds.
+     * @dev This can be used if the rewards controller has since removed a reward
+     * token so the normal harvest flow doesnt work. Or for retroactive airdrops.
+     * @param _token The address of the token to sell.
+     */
+    function sellRewardManually(address _token) external onlyManagement {
+        uint256 balance = ERC20(_token).balanceOf(address(this));
+        // Swap from will do min check
+        _swapFrom(_token, asset, balance, 0);
+    }
+
+    /**
      * @notice Set the `dontSell` mapping for a specific `_token`.
      * @dev This can be used by management to adjust wether or not the
      * _calimAndSellRewards() function will attempt to sell a specific

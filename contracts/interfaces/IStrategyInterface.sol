@@ -12,4 +12,6 @@ interface IStrategyInterface is IStrategy, IUniswapV3Swapper {
     function setMinAmountToSell(uint256 _minAmountToSell) external;
 
     function setDontSell(address _token, bool _sell) external;
+
+    function sellRewardManually(address _token) external;
 }
