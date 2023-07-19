@@ -113,7 +113,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      * call. Meaning that unless a whitelist is implemented it will
      * be entirely permsionless and thus can be sandwhiched or otherwise
      * manipulated.
-     *
+     * 
      * @param _amount The amount of 'asset' that the strategy should attemppt
      * to deposit in the yield source.
      */
