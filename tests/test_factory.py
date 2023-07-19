@@ -37,6 +37,8 @@ def test__factory_deployed__operation(
 
     strategy = project.IStrategyInterface.at(event[0].strategy)
 
+    strategy.acceptManagement(sender=management)
+
     asset.transfer(user, amount, sender=whale)
 
     user_balance_before = asset.balanceOf(user)
@@ -93,7 +95,7 @@ def test__factory_deployed__profitable_report(
         aave_fee = 3000
 
     tx = factory.newAaveV3Lender(
-        asset, "yTest Factory", rewards, keeper, management, sender=management
+        asset, "yTest Factory", sender=management
     )
 
     event = list(tx.decode_logs(factory.NewAaveV3Lender))
@@ -102,6 +104,8 @@ def test__factory_deployed__profitable_report(
     assert event[0].asset == asset.address
 
     strategy = project.IStrategyInterface.at(event[0].strategy)
+
+    strategy.acceptManagement(sender=management)
 
     # set uni fees for swap
     strategy.setUniFees(aave, asset, aave_fee, sender=management)
@@ -202,6 +206,8 @@ def test__factory_deployed__reward_selling(
     assert event[0].asset == asset.address
 
     strategy = project.IStrategyInterface.at(event[0].strategy)
+
+    strategy.acceptManagement(sender=management)
 
     asset.transfer(user, amount, sender=whale)
 
@@ -309,6 +315,8 @@ def test__factory_deployed__shutdown(
 
     strategy = project.IStrategyInterface.at(event[0].strategy)
 
+    strategy.acceptManagement(sender=management)
+
     asset.transfer(user, amount, sender=whale)
 
     user_balance_before = asset.balanceOf(user)
@@ -382,6 +390,8 @@ def test__factroy_deployed__access(
     assert event[0].asset == asset.address
 
     strategy = project.IStrategyInterface.at(event[0].strategy)
+
+    strategy.acceptManagement(sender=management)
 
     asset.transfer(user, amount, sender=whale)
 

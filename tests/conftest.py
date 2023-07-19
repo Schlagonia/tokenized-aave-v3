@@ -84,14 +84,16 @@ def weth_amount(user, weth):
 
 
 @pytest.fixture(scope="session")
-def create_strategy(management, keeper, rewards):
-    def create_strategy(asset, performanceFee=1_000):
-        strategy = management.deploy(project.AaveV3Lender, asset, "yStrategy-Example")
-        strategy = project.IStrategyInterface.at(strategy.address)
+def create_strategy(management, factory):
+    def create_strategy(asset, performance_fee=1_000):
+        tx = factory.newAaveV3Lender(asset, "yStrategy-Example", sender=management)
 
-        strategy.setKeeper(keeper, sender=management)
-        strategy.setPerformanceFeeRecipient(rewards, sender=management)
-        strategy.setPerformanceFee(performanceFee, sender=management)
+        event = list(tx.decode_logs(factory.NewAaveV3Lender))
+        strategy = project.IStrategyInterface.at(event[0].strategy)
+
+        strategy.acceptManagement(sender=management)
+
+        strategy.setPerformanceFee(performance_fee, sender=management)
 
         return strategy
 
@@ -100,9 +102,9 @@ def create_strategy(management, keeper, rewards):
 
 @pytest.fixture(scope="session")
 def create_factory(management, keeper, rewards):
-    def create_factory(asset, performanceFee=1_000):
+    def create_factory():
         factory = management.deploy(
-            project.AaveV3LenderFactory, asset, "Strategy example"
+            project.AaveV3LenderFactory, management, rewards, keeper
         )
 
         return factory
@@ -128,8 +130,8 @@ def strategy(asset, create_strategy):
 
 
 @pytest.fixture(scope="session")
-def factory(asset, create_factory):
-    factory = create_factory(asset)
+def factory(create_factory):
+    factory = create_factory()
 
     yield factory
 
