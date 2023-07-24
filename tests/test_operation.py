@@ -22,11 +22,7 @@ def test__operation(
 
     # TODO: Implement logic so totalDebt ends > 0
     check_strategy_totals(
-        strategy,
-        total_assets=amount,
-        total_debt=amount,
-        total_idle=0,
-        total_supply=amount,
+        strategy, total_assets=amount, total_debt=amount, total_idle=0
     )
 
     chain.mine(10)
@@ -34,9 +30,7 @@ def test__operation(
     # withdrawal
     strategy.withdraw(amount, user, user, sender=user)
 
-    check_strategy_totals(
-        strategy, total_assets=0, total_debt=0, total_idle=0, total_supply=0
-    )
+    check_strategy_totals(strategy, total_assets=0, total_debt=0, total_idle=0)
 
     assert asset.balanceOf(user) == user_balance_before
 
@@ -60,11 +54,7 @@ def test_profitable_report(
 
     # TODO: Implement logic so totalDebt ends > 0
     check_strategy_totals(
-        strategy,
-        total_assets=amount,
-        total_debt=amount,
-        total_idle=0,
-        total_supply=amount,
+        strategy, total_assets=amount, total_debt=amount, total_idle=0
     )
 
     # TODO: Add some code to simulate earning yield
@@ -87,22 +77,14 @@ def test_profitable_report(
 
     # TODO: Implement logic so totalDebt == amount + profit
     check_strategy_totals(
-        strategy,
-        total_assets=amount + profit,
-        total_debt=amount + profit,
-        total_idle=0,
-        total_supply=amount + profit,
+        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
     )
 
     # needed for profits to unlock
     increase_time(chain, strategy.profitMaxUnlockTime() - 1)
 
     check_strategy_totals(
-        strategy,
-        total_assets=amount + profit,
-        total_debt=amount + profit,
-        total_idle=0,
-        total_supply=amount + performance_fees,
+        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
     )
     assert strategy.pricePerShare() > before_pps
 
@@ -137,11 +119,7 @@ def test__profitable_report__with_fee(
 
     # TODO: Implement logic so totalDebt ends > 0
     check_strategy_totals(
-        strategy,
-        total_assets=amount,
-        total_debt=amount,
-        total_idle=0,
-        total_supply=amount,
+        strategy, total_assets=amount, total_debt=amount, total_idle=0
     )
 
     # TODO: Add some code to simulate earning yield
@@ -163,22 +141,14 @@ def test__profitable_report__with_fee(
 
     # TODO: Implement logic so totalDebt == amount + profit
     check_strategy_totals(
-        strategy,
-        total_assets=amount + profit,
-        total_debt=amount + profit,
-        total_idle=0,
-        total_supply=amount + profit,
+        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
     )
 
     # needed for profits to unlock
     increase_time(chain, strategy.profitMaxUnlockTime() - 1)
 
     check_strategy_totals(
-        strategy,
-        total_assets=amount + profit,
-        total_debt=amount + profit,
-        total_idle=0,
-        total_supply=amount + expected_performance_fee,
+        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
     )
 
     assert strategy.pricePerShare() > before_pps
@@ -191,13 +161,7 @@ def test__profitable_report__with_fee(
 
     strategy.redeem(expected_performance_fee, rewards, rewards, sender=rewards)
 
-    check_strategy_totals(
-        strategy,
-        total_assets=0,
-        total_debt=0,
-        total_idle=0,
-        total_supply=0,
-    )
+    check_strategy_totals(strategy, total_assets=0, total_debt=0, total_idle=0)
 
     assert asset.balanceOf(rewards) >= rewards_balance_before + expected_performance_fee
 

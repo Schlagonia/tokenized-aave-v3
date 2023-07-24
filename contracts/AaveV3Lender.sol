@@ -10,7 +10,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {IAToken} from "./interfaces/Aave/V3/IAtoken.sol";
 import {IStakedAave} from "./interfaces/Aave/V3/IStakedAave.sol";
 import {IPool} from "./interfaces/Aave/V3/IPool.sol";
-import {IProtocolDataProvider} from "./interfaces/Aave/V3/IProtocolDataProvider.sol";
 import {IRewardsController} from "./interfaces/Aave/V3/IRewardsController.sol";
 
 // Uniswap V3 Swapper
@@ -19,11 +18,24 @@ import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
 contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     using SafeERC20 for ERC20;
 
-    IProtocolDataProvider public constant protocolDataProvider =
-        IProtocolDataProvider(0x7B4EB56E7CD4b454BA8ff71E4518426369a138a3);
-    IPool public immutable lendingPool;
+    // The pool to deposit and withdraw through.
+    IPool public constant lendingPool =
+        IPool(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
+
+    // The a Token specific rewards contract for claiming rewards.
     IRewardsController public immutable rewardsController;
+
+    // The token that we get in return for deposits.
     IAToken public immutable aToken;
+
+    // Bool to decide to try and claim rewards. Defaults to True.
+    bool public claimRewards = true;
+
+    // Mapping to be set by management for any reward tokens.
+    // This can be used to set different mins for different tokens
+    // or to set to uin256.max if selling a reward token is reverting
+    // to allow for reports to still work properly.
+    mapping(address => uint256) public minAmountToSellMapping;
 
     // stkAave addresses only Applicable for Mainnet.
     IStakedAave internal constant stkAave =
@@ -34,23 +46,37 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         address _asset,
         string memory _name
     ) BaseTokenizedStrategy(_asset, _name) {
-        lendingPool = IPool(
-            protocolDataProvider.ADDRESSES_PROVIDER().getPool()
-        );
+        // Set the aToken based on the asset we are using.
         aToken = IAToken(lendingPool.getReserveData(_asset).aTokenAddress);
 
+        // Make sure its a real token.
         require(address(aToken) != address(0), "!aToken");
 
+        // Set the rewards controller
         rewardsController = aToken.getIncentivesController();
 
+        // Make approve the lending pool for cheaper deposits.
         ERC20(_asset).safeApprove(address(lendingPool), type(uint256).max);
 
         // Set uni swapper values
-        minAmountToSell = 1e4;
+        // We will use the minAmountToSell mapping instead.
+        minAmountToSell = 0;
         base = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
         router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     }
 
+    /**
+     * @notice Set the uni fees for swaps.
+     * @dev External function available to management to set
+     * the fees used in the `UniswapV3Swapper.
+     *
+     * Any incentived tokens will need a fee to be set for each
+     * reward token that it wishes to swap on reports.
+     *
+     * @param _token0 The first token of the pair.
+     * @param _token1 The second token of the pair.
+     * @param _fee The fee to be used for the pair.
+     */
     function setUniFees(
         address _token0,
         address _token1,
@@ -59,6 +85,13 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         _setUniFees(_token0, _token1, _fee);
     }
 
+    /**
+     * @notice Set the min amount to sell.
+     * @dev External function available to management to set
+     * the `minAmountToSell` variable in the `UniswapV3Swapper`.
+     *
+     * @param _minAmountToSell The min amount of tokens to sell.
+     */
     function setMinAmountToSell(
         uint256 _minAmountToSell
     ) external onlyManagement {
@@ -143,13 +176,17 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         override
         returns (uint256 _totalAssets)
     {
-        // Claim and sell any rewards to `asset`.
-        _claimAndSellRewards();
+        if (!TokenizedStrategy.isShutdown()) {
+            if (claimRewards) {
+                // Claim and sell any rewards to `asset`.
+                _claimAndSellRewards();
+            }
 
-        // deposit any loose funds
-        uint256 looseAsset = ERC20(asset).balanceOf(address(this));
-        if (looseAsset > 0 && !TokenizedStrategy.isShutdown()) {
-            lendingPool.supply(asset, looseAsset, address(this), 0);
+            // deposit any loose funds
+            uint256 looseAsset = ERC20(asset).balanceOf(address(this));
+            if (looseAsset > 0) {
+                lendingPool.supply(asset, looseAsset, address(this), 0);
+            }
         }
 
         _totalAssets =
@@ -178,18 +215,17 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
             } else if (token == asset) {
                 continue;
             } else {
-                _swapFrom(
-                    token,
-                    asset,
-                    ERC20(token).balanceOf(address(this)),
-                    0
-                );
+                uint256 balance = ERC20(token).balanceOf(address(this));
+
+                if (balance > minAmountToSellMapping[token]) {
+                    _swapFrom(token, asset, balance, 0);
+                }
             }
         }
     }
 
     function _redeemAave() internal {
-        if (!_checkCooldown()) {
+        if (!checkCooldown()) {
             return;
         }
 
@@ -205,7 +241,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         _swapFrom(AAVE, asset, ERC20(AAVE).balanceOf(address(this)), 0);
     }
 
-    function _checkCooldown() internal view returns (bool) {
+    function checkCooldown() public view returns (bool) {
         if (block.chainid != 1) {
             return false;
         }
@@ -239,6 +275,70 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     }
 
     /**
+     * @notice Gets the max amount of `asset` that can be withdrawn.
+     * @dev Defaults to an unlimited amount for any address. But can
+     * be overriden by strategists.
+     *
+     * This function will be called before any withdraw or redeem to enforce
+     * any limits desired by the strategist. This can be used for illiquid
+     * or sandwhichable strategies. It should never be lower than `totalIdle`.
+     *
+     *   EX:
+     *       return TokenIzedStrategy.totalIdle();
+     *
+     * This does not need to take into account the `_owner`'s share balance
+     * or conversion rates from shares to assets.
+     *
+     * @param . The address that is withdrawing from the strategy.
+     * @return . The avialable amount that can be withdrawn in terms of `asset`
+     */
+    function availableWithdrawLimit(
+        address /*_owner*/
+    ) public view override returns (uint256) {
+        return ERC20(asset).balanceOf(address(aToken));
+    }
+
+    /**
+     * @notice Allows `management` to manually swap a token the strategy holds.
+     * @dev This can be used if the rewards controller has since removed a reward
+     * token so the normal harvest flow doesnt work. Or for retroactive airdrops.
+     * @param _token The address of the token to sell.
+     */
+    function sellRewardManually(
+        address _token,
+        uint256 _minAmountOut
+    ) external onlyManagement {
+        uint256 balance = ERC20(_token).balanceOf(address(this));
+        // Swap from will do min check
+        _swapFrom(_token, asset, balance, _minAmountOut);
+    }
+
+    /**
+     * @notice Set the `minAmountToSellMapping` for a specific `_token`.
+     * @dev This can be used by management to adjust wether or not the
+     * _calimAndSellRewards() function will attempt to sell a specific
+     * reward token. This can be used if liquidity is to low, amounts
+     * are to low or any other reason that may cause reverts.
+     *
+     * @param _token The address of the token to adjust.
+     * @param _amount Min required amount to sell.
+     */
+    function setMinAmountToSellMapping(
+        address _token,
+        uint256 _amount
+    ) external onlyManagement {
+        minAmountToSellMapping[_token] = _amount;
+    }
+
+    /**
+     * @notice Set wether or not the strategy should claim and sell rewards.
+     * @param _bool Wether or not rewards should be claimed and sold
+     */
+    function setClaimRewards(bool _bool) external onlyManagement {
+        claimRewards = _bool;
+    }
+
+    /**
      * @dev Optional function for a strategist to override that will
      * allow management to manually withdraw deployed funds from the
      * yield source if a strategy is shutdown.
@@ -260,6 +360,10 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      * @param _amount The amount of asset to attempt to free.
      */
     function _emergencyWithdraw(uint256 _amount) internal override {
-        lendingPool.withdraw(asset, _amount, address(this));
+        lendingPool.withdraw(
+            asset,
+            Math.min(_amount, aToken.balanceOf(address(this))),
+            address(this)
+        );
     }
 }
