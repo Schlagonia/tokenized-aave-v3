@@ -73,6 +73,8 @@ def test_profitable_report(
 
     assert profit >= to_airdrop
 
+    performance_fees = profit * strategy.performanceFee() // MAX_BPS
+
     # TODO: Implement logic so totalDebt == amount + profit
     check_strategy_totals(
         strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0

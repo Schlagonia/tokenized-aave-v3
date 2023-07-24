@@ -123,16 +123,18 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      * The amount of 'asset' that is already loose has already
      * been accounted for.
      *
-     * Should do any needed parameter checks, '_amount' may be more
-     * than is actually available.
-     *
-     * This function is called {withdraw} and {redeem} calls.
+     * This function is called during {withdraw} and {redeem} calls.
      * Meaning that unless a whitelist is implemented it will be
      * entirely permsionless and thus can be sandwhiched or otherwise
      * manipulated.
      *
      * Should not rely on asset.balanceOf(address(this)) calls other than
      * for diff accounting puroposes.
+     *
+     * Any difference between `_amount` and what is actually freed will be
+     * counted as a loss and passed on to the withdrawer. This means
+     * care should be taken in times of illiquidity. It may be better to revert
+     * if withdraws are simply illiquid so not to realize incorrect losses.
      *
      * @param _amount, The amount of 'asset' to be freed.
      */
