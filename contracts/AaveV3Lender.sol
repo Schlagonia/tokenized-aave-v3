@@ -34,7 +34,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
 
     // Mapping to be set by management for any reward tokens.
     // This can be used to set different mins for different tokens
-    // or to set to uin256.max if selling a reward token is reverting
+    // or to set to uint256.max if selling a reward token is reverting
     // to allow for reports to still work properly.
     mapping(address => uint256) public minAmountToSellMapping;
 
