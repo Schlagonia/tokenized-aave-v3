@@ -234,7 +234,7 @@ def test__factory_deployed__reward_selling(
     aave.transfer(strategy, aave_amount, sender=whale)
     assert aave.balanceOf(strategy) == aave_amount
 
-    strategy.sellRewardManually(aave.address, sender=management)
+    strategy.sellRewardManually(aave.address, 0, sender=management)
 
     before_pps = strategy.pricePerShare()
 
@@ -403,9 +403,9 @@ def test__factroy_deployed__access(
     assert strategy.uniFees(aave, weth) == 300
     assert strategy.uniFees(weth, aave) == 300
 
-    assert strategy.minAmountToSell() == 1e4
+    assert strategy.minAmountToSell() == 0
 
-    amount = 0
+    amount = int(1e4)
 
     strategy.setMinAmountToSell(amount, sender=management)
 
@@ -414,7 +414,7 @@ def test__factroy_deployed__access(
     with reverts("!Authorized"):
         strategy.setMinAmountToSell(int(1e12), sender=user)
 
-    assert strategy.minAmountToSell() == 0
+    assert strategy.minAmountToSell() == amount
 
     with reverts("!Authorized"):
         strategy.emergencyWithdraw(100, sender=user)

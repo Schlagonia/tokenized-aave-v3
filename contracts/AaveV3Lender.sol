@@ -29,11 +29,14 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     // The token that we get in return for deposits.
     IAToken public immutable aToken;
 
-    // Mapping to be set by management for any reward tokens
-    // that should not or can not be sold. This can be used
-    // if selling a reward token is reverting to allow for
-    // reports to still work properly.
-    mapping(address => bool) public dontSell;
+    // Bool to decide to try and claim rewards. Defaults to True.
+    bool public claimRewards = true;
+
+    // Mapping to be set by management for any reward tokens.
+    // This can be used to set different mins for different tokens
+    // or to set to uin256.max if selling a reward token is reverting
+    // to allow for reports to still work properly.
+    mapping(address => uint256) public minAmountToSellMapping;
 
     constructor(
         address _asset,
@@ -52,7 +55,8 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         ERC20(_asset).safeApprove(address(lendingPool), type(uint256).max);
 
         // Set uni swapper values
-        minAmountToSell = 1e4;
+        // We will use the minAmountToSell mapping instead.
+        minAmountToSell = 0;
         base = 0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619;
         router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     }
@@ -197,17 +201,40 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
 
-            if (token == asset || dontSell[token]) {
+            if (token == asset) {
                 continue;
             } else {
-                _swapFrom(
-                    token,
-                    asset,
-                    ERC20(token).balanceOf(address(this)),
-                    0
-                );
+                uint256 balance = ERC20(token).balanceOf(address(this));
+
+                if (balance > minAmountToSellMapping[token]) {
+                    _swapFrom(token, asset, balance, 0);
+                }
             }
         }
+    }
+
+    /**
+     * @notice Gets the max amount of `asset` that can be withdrawn.
+     * @dev Defaults to an unlimited amount for any address. But can
+     * be overriden by strategists.
+     *
+     * This function will be called before any withdraw or redeem to enforce
+     * any limits desired by the strategist. This can be used for illiquid
+     * or sandwhichable strategies. It should never be lower than `totalIdle`.
+     *
+     *   EX:
+     *       return TokenIzedStrategy.totalIdle();
+     *
+     * This does not need to take into account the `_owner`'s share balance
+     * or conversion rates from shares to assets.
+     *
+     * @param . The address that is withdrawing from the strategy.
+     * @return . The avialable amount that can be withdrawn in terms of `asset`
+     */
+    function availableWithdrawLimit(
+        address /*_owner*/
+    ) public view override returns (uint256) {
+        return ERC20(asset).balanceOf(address(aToken));
     }
 
     /**
@@ -216,24 +243,38 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      * token so the normal harvest flow doesnt work. Or for retroactive airdrops.
      * @param _token The address of the token to sell.
      */
-    function sellRewardManually(address _token) external onlyManagement {
+    function sellRewardManually(
+        address _token,
+        uint256 _minAmountOut
+    ) external onlyManagement {
         uint256 balance = ERC20(_token).balanceOf(address(this));
         // Swap from will do min check
-        _swapFrom(_token, asset, balance, 0);
+        _swapFrom(_token, asset, balance, _minAmountOut);
     }
 
     /**
-     * @notice Set the `dontSell` mapping for a specific `_token`.
+     * @notice Set the `minAmountToSellMapping` for a specific `_token`.
      * @dev This can be used by management to adjust wether or not the
      * _calimAndSellRewards() function will attempt to sell a specific
      * reward token. This can be used if liquidity is to low, amounts
      * are to low or any other reason that may cause reverts.
      *
      * @param _token The address of the token to adjust.
-     * @param _sell Bool to set the mapping to for `_token`.
+     * @param _amount Min required amount to sell.
      */
-    function setDontSell(address _token, bool _sell) external onlyManagement {
-        dontSell[_token] = _sell;
+    function setMinAmountToSellMapping(
+        address _token,
+        uint256 _amount
+    ) external onlyManagement {
+        minAmountToSellMapping[_token] = _amount;
+    }
+
+    /**
+     * @notice Set wether or not the strategy should claim and sell rewards.
+     * @param _bool Wether or not rewards should be claimed and sold
+     */
+    function setClaimRewards(bool _bool) external onlyManagement {
+        claimRewards = _bool;
     }
 
     /**
@@ -258,6 +299,10 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      * @param _amount The amount of asset to attempt to free.
      */
     function _emergencyWithdraw(uint256 _amount) internal override {
-        lendingPool.withdraw(asset, _amount, address(this));
+        lendingPool.withdraw(
+            asset,
+            Math.min(_amount, aToken.balanceOf(address(this))),
+            address(this)
+        );
     }
 }

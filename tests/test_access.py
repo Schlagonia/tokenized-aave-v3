@@ -49,29 +49,28 @@ def test__set_uni_fees__reverts(
     assert strategy.uniFees(weth, aave) == 0
 
 
-def test__dont_sell(
+def test__claim_rewards(
     strategy,
-    aave,
     management,
 ):
-    assert strategy.dontSell(aave) == False
+    assert strategy.claimRewards() == True
 
-    strategy.setDontSell(aave, True, sender=management)
+    strategy.setClaimRewards(False, sender=management)
 
-    assert strategy.dontSell(aave) == True
+    assert strategy.claimRewards() == False
 
-    strategy.setDontSell(aave, False, sender=management)
+    strategy.setClaimRewards(True, sender=management)
 
-    assert strategy.dontSell(aave) == False
+    assert strategy.claimRewards() == True
 
 
 def test__set_min_amount_to_sell(
     strategy,
     management,
 ):
-    assert strategy.minAmountToSell() == 1e4
+    assert strategy.minAmountToSell() == 0
 
-    amount = 0
+    amount = int(1e4)
 
     strategy.setMinAmountToSell(amount, sender=management)
 
@@ -84,29 +83,53 @@ def test__set_min_amount_to_sell(
     assert strategy.minAmountToSell() == amount
 
 
+def test__set_min_amount_to_sell_mapping(strategy, management, aave):
+    assert strategy.minAmountToSellMapping(aave) == 0
+
+    amount = int(1e4)
+
+    strategy.setMinAmountToSellMapping(aave, amount, sender=management)
+
+    assert strategy.minAmountToSellMapping(aave) == amount
+
+    amount = int(100e18)
+
+    strategy.setMinAmountToSellMapping(aave, amount, sender=management)
+
+    assert strategy.minAmountToSellMapping(aave) == amount
+
+
 def test__set_dont_sell__reverts(
     strategy,
-    aave,
     user,
 ):
-    assert strategy.dontSell(aave) == False
+    assert strategy.claimRewards() == True
 
     with reverts("!Authorized"):
-        strategy.setDontSell(aave, True, sender=user)
+        strategy.setClaimRewards(False, sender=user)
 
-    assert strategy.dontSell(aave) == False
+    assert strategy.claimRewards() == True
 
 
 def test__set_min_amount_to_sell__reverts(
     strategy,
     user,
 ):
-    assert strategy.minAmountToSell() == 1e4
+    assert strategy.minAmountToSell() == 0
 
     with reverts("!Authorized"):
-        strategy.setMinAmountToSell(0, sender=user)
+        strategy.setMinAmountToSell(int(1e4), sender=user)
 
-    assert strategy.minAmountToSell() == 1e4
+    assert strategy.minAmountToSell() == 0
+
+
+def test__set_min_amount_to_sell_mapping__reverts(strategy, user, aave):
+    assert strategy.minAmountToSellMapping(aave) == 0
+
+    with reverts("!Authorized"):
+        strategy.setMinAmountToSellMapping(aave, int(1e4), sender=user)
+
+    assert strategy.minAmountToSellMapping(aave) == 0
 
 
 def test__emergency_withdraw__reverts(strategy, user, deposit, amount):
