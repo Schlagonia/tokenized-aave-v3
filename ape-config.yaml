@@ -11,10 +11,10 @@ default_ecosystem: ethereum
 dependencies:
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
-    version: 4.8.2
+    ref: 4.8.2
   - name: tokenized-strategy
     github: yearn/tokenized-strategy
-    branch: v3.0.0
+    ref: v3.0.0
     contracts_folder: src
     exclude:
      - src/test/**/*
