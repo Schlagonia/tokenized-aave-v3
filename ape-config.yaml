@@ -14,18 +14,18 @@ dependencies:
     version: 4.8.2
   - name: tokenized-strategy
     github: yearn/tokenized-strategy
-    branch: test
+    branch: v3.0.0
     contracts_folder: src
     exclude:
      - src/test/**/*
   - name: periphery
-    github: schlagonia/tokenized-strategy-periphery
+    github: yearn/tokenized-strategy-periphery
     branch: master
 
 solidity:
   import_remapping:
     - "@openzeppelin/contracts=openzeppelin/v4.8.2"
-    - "@tokenized-strategy=tokenized-strategy/test"
+    - "@tokenized-strategy=tokenized-strategy/v3.0.0"
     - "@periphery=periphery/master"
 
 ethereum:

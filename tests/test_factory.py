@@ -2,14 +2,15 @@ import ape
 from ape import Contract, reverts, project
 from utils.checks import check_strategy_totals, check_strategy_mins
 from utils.utils import days_to_secs
+from utils.constants import MAX_BPS
 import pytest
 
 
-def test__clone__operation(
+def test__factory_deployed__operation(
     chain,
     asset,
     tokens,
-    strategy,
+    factory,
     user,
     management,
     rewards,
@@ -27,13 +28,16 @@ def test__clone__operation(
         asset = Contract(tokens["weth"])
         amount = weth_amount
 
-    tx = strategy.cloneAaveV3Lender(
-        asset, "yTest Clone", management, rewards, keeper, sender=management
-    )
+    tx = factory.newAaveV3Lender(asset, "yTest Factory", sender=management)
 
-    strategy = project.IStrategyInterface.at(tx.return_value)
+    event = list(tx.decode_logs(factory.NewAaveV3Lender))
 
-    strategy.setPerformanceFee(0, sender=management)
+    assert len(event) == 1
+    assert event[0].asset == asset.address
+
+    strategy = project.IStrategyInterface.at(event[0].strategy)
+
+    strategy.acceptManagement(sender=management)
 
     asset.transfer(user, amount, sender=whale)
 
@@ -44,11 +48,7 @@ def test__clone__operation(
     strategy.deposit(amount, user, sender=user)
 
     check_strategy_totals(
-        strategy,
-        total_assets=amount,
-        total_debt=amount,
-        total_idle=0,
-        total_supply=amount,
+        strategy, total_assets=amount, total_debt=amount, total_idle=0
     )
 
     chain.mine(10)
@@ -56,20 +56,18 @@ def test__clone__operation(
     # withdrawal
     strategy.withdraw(amount, user, user, sender=user)
 
-    check_strategy_totals(
-        strategy, total_assets=0, total_debt=0, total_idle=0, total_supply=0
-    )
+    check_strategy_totals(strategy, total_assets=0, total_debt=0, total_idle=0)
 
     assert (
         pytest.approx(asset.balanceOf(user), rel=RELATIVE_APPROX) == user_balance_before
     )
 
 
-def test__clone__profitable_report(
+def test__factory_deployed__profitable_report(
     chain,
     asset,
     tokens,
-    strategy,
+    factory,
     user,
     management,
     rewards,
@@ -90,13 +88,16 @@ def test__clone__profitable_report(
         amount = weth_amount
         aave_fee = 3000
 
-    tx = strategy.cloneAaveV3Lender(
-        asset, "yTest Clone", management, rewards, keeper, sender=management
-    )
+    tx = factory.newAaveV3Lender(asset, "yTest Factory", sender=management)
 
-    strategy = project.IStrategyInterface.at(tx.return_value)
+    event = list(tx.decode_logs(factory.NewAaveV3Lender))
 
-    strategy.setPerformanceFee(0, sender=management)
+    assert len(event) == 1
+    assert event[0].asset == asset.address
+
+    strategy = project.IStrategyInterface.at(event[0].strategy)
+
+    strategy.acceptManagement(sender=management)
 
     # set uni fees for swap
     strategy.setUniFees(aave, asset, aave_fee, sender=management)
@@ -113,11 +114,7 @@ def test__clone__profitable_report(
     strategy.deposit(amount, user, sender=user)
 
     check_strategy_totals(
-        strategy,
-        total_assets=amount,
-        total_debt=amount,
-        total_idle=0,
-        total_supply=amount,
+        strategy, total_assets=amount, total_debt=amount, total_idle=0
     )
 
     # Earn some profit
@@ -130,12 +127,10 @@ def test__clone__profitable_report(
     profit, loss = tx.return_value
     assert profit > 0
 
+    performance_fees = profit * strategy.performanceFee() // MAX_BPS
+
     check_strategy_totals(
-        strategy,
-        total_assets=amount + profit,
-        total_debt=amount + profit,
-        total_idle=0,
-        total_supply=amount + profit,
+        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
     )
 
     # needed for profits to unlock
@@ -145,34 +140,21 @@ def test__clone__profitable_report(
     chain.mine(timestamp=chain.pending_timestamp)
 
     check_strategy_totals(
-        strategy,
-        total_assets=amount + profit,
-        total_debt=amount + profit,
-        total_idle=0,
-        total_supply=amount,
+        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
     )
 
     assert strategy.pricePerShare() > before_pps
 
     strategy.redeem(amount, user, user, sender=user)
 
-    check_strategy_totals(
-        strategy,
-        total_assets=0,
-        total_debt=0,
-        total_idle=0,
-        total_supply=0,
-    )
-
     assert asset.balanceOf(user) > user_balance_before
 
 
-"""
-def test__clone__reward_selling(
+def test__factory_deployed__reward_selling(
     chain,
     asset,
     tokens,
-    strategy,
+    factory,
     user,
     management,
     rewards,
@@ -193,13 +175,16 @@ def test__clone__reward_selling(
         amount = weth_amount
         aave_fee = 3000
 
-    tx = strategy.cloneAaveV3Lender(
-        asset, "yTest Clone", management, rewards, keeper, sender=management
-    )
+    tx = factory.newAaveV3Lender(asset, "yTest Factory", sender=management)
 
-    strategy = project.IStrategyInterface.at(tx.return_value)
+    event = list(tx.decode_logs(factory.NewAaveV3Lender))
 
-    strategy.setPerformanceFee(0, sender=management)
+    assert len(event) == 1
+    assert event[0].asset == asset.address
+
+    strategy = project.IStrategyInterface.at(event[0].strategy)
+
+    strategy.acceptManagement(sender=management)
 
     asset.transfer(user, amount, sender=whale)
 
@@ -220,7 +205,6 @@ def test__clone__reward_selling(
         total_assets=amount,
         total_debt=amount,
         total_idle=0,
-        total_supply=amount,
     )
 
     # Earn some profit
@@ -231,8 +215,7 @@ def test__clone__reward_selling(
     aave.transfer(strategy, aave_amount, sender=whale)
     assert aave.balanceOf(strategy) == aave_amount
 
-    # Simulate a staave redeem during a harvest
-    strategy.manualRedeemAave(sender=management)
+    strategy.sellRewardManually(aave.address, 0, sender=management)
 
     before_pps = strategy.pricePerShare()
 
@@ -242,12 +225,10 @@ def test__clone__reward_selling(
 
     assert profit > 0
 
+    performance_fees = profit * strategy.performanceFee() // MAX_BPS
+
     check_strategy_totals(
-        strategy,
-        total_assets=amount + profit,
-        total_debt=amount + profit,
-        total_idle=0,
-        total_supply=amount + profit,
+        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
     )
 
     assert aave.balanceOf(strategy.address) == 0
@@ -259,34 +240,21 @@ def test__clone__reward_selling(
     chain.mine(timestamp=chain.pending_timestamp)
 
     check_strategy_totals(
-        strategy,
-        total_assets=amount + profit,
-        total_debt=amount + profit,
-        total_idle=0,
-        total_supply=amount,
+        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
     )
 
     assert strategy.pricePerShare() > before_pps
 
     strategy.redeem(amount, user, user, sender=user)
 
-    check_strategy_totals(
-        strategy,
-        total_assets=0,
-        total_debt=0,
-        total_idle=0,
-        total_supply=0,
-    )
-
     assert asset.balanceOf(user) > user_balance_before
-"""
 
 
-def test__clone__shutdown(
+def test__factory_deployed__shutdown(
     chain,
     asset,
     tokens,
-    strategy,
+    factory,
     user,
     management,
     rewards,
@@ -304,15 +272,18 @@ def test__clone__shutdown(
         asset = Contract(tokens["weth"])
         amount = weth_amount
 
-    tx = strategy.cloneAaveV3Lender(
-        asset, "yTest Clone", management, rewards, keeper, sender=management
-    )
+    tx = factory.newAaveV3Lender(asset, "yTest Factory", sender=management)
 
-    strategy = project.IStrategyInterface.at(tx.return_value)
+    event = list(tx.decode_logs(factory.NewAaveV3Lender))
+
+    assert len(event) == 1
+    assert event[0].asset == asset.address
+
+    strategy = project.IStrategyInterface.at(event[0].strategy)
+
+    strategy.acceptManagement(sender=management)
 
     asset.transfer(user, amount, sender=whale)
-
-    strategy.setPerformanceFee(0, sender=management)
 
     user_balance_before = asset.balanceOf(user)
 
@@ -321,11 +292,7 @@ def test__clone__shutdown(
     strategy.deposit(amount, user, sender=user)
 
     check_strategy_totals(
-        strategy,
-        total_assets=amount,
-        total_debt=amount,
-        total_idle=0,
-        total_supply=amount,
+        strategy, total_assets=amount, total_debt=amount, total_idle=0
     )
 
     chain.mine(14)
@@ -339,11 +306,7 @@ def test__clone__shutdown(
 
     assert asset.balanceOf(strategy) >= amount
     check_strategy_mins(
-        strategy,
-        min_total_assets=amount,
-        min_total_debt=0,
-        min_total_idle=amount,
-        min_total_supply=amount,
+        strategy, min_total_assets=amount, min_total_debt=0, min_total_idle=amount
     )
 
     # withdrawal
@@ -354,11 +317,11 @@ def test__clone__shutdown(
     )
 
 
-def test__clone__access(
+def test__factroy_deployed__access(
     chain,
     asset,
     tokens,
-    strategy,
+    factory,
     user,
     management,
     rewards,
@@ -377,11 +340,16 @@ def test__clone__access(
         asset = Contract(tokens["weth"])
         amount = weth_amount
 
-    tx = strategy.cloneAaveV3Lender(
-        asset, "yTest Clone", management, rewards, keeper, sender=management
-    )
+    tx = factory.newAaveV3Lender(asset, "yTest Factory", sender=management)
 
-    strategy = project.IStrategyInterface.at(tx.return_value)
+    event = list(tx.decode_logs(factory.NewAaveV3Lender))
+
+    assert len(event) == 1
+    assert event[0].asset == asset.address
+
+    strategy = project.IStrategyInterface.at(event[0].strategy)
+
+    strategy.acceptManagement(sender=management)
 
     asset.transfer(user, amount, sender=whale)
 
@@ -400,9 +368,9 @@ def test__clone__access(
     assert strategy.uniFees(aave, weth) == 300
     assert strategy.uniFees(weth, aave) == 300
 
-    assert strategy.minAmountToSell() == 1e4
+    assert strategy.minAmountToSell() == 0
 
-    amount = 0
+    amount = int(1e4)
 
     strategy.setMinAmountToSell(amount, sender=management)
 
@@ -411,7 +379,7 @@ def test__clone__access(
     with reverts("!Authorized"):
         strategy.setMinAmountToSell(int(1e12), sender=user)
 
-    assert strategy.minAmountToSell() == 0
+    assert strategy.minAmountToSell() == amount
 
     with reverts("!Authorized"):
         strategy.emergencyWithdraw(100, sender=user)
