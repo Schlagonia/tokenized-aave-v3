@@ -171,11 +171,11 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         returns (uint256 _totalAssets)
     {
         if (!TokenizedStrategy.isShutdown()) {
-            if(claimRewards) {
+            if (claimRewards) {
                 // Claim and sell any rewards to `asset`.
                 _claimAndSellRewards();
             }
-            
+
             // deposit any loose funds
             uint256 looseAsset = ERC20(asset).balanceOf(address(this));
             if (looseAsset > 0) {
