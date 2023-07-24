@@ -28,7 +28,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
 
     // The token that we get in return for deposits.
     IAToken public immutable aToken;
-
+gi
     // Bool to decide to try and claim rewards. Defaults to True.
     bool public claimRewards = true;
 
@@ -171,9 +171,11 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         returns (uint256 _totalAssets)
     {
         if (!TokenizedStrategy.isShutdown()) {
-            // Claim and sell any rewards to `asset`.
-            _claimAndSellRewards();
-
+            if(claimRewards) {
+                // Claim and sell any rewards to `asset`.
+                _claimAndSellRewards();
+            }
+            
             // deposit any loose funds
             uint256 looseAsset = ERC20(asset).balanceOf(address(this));
             if (looseAsset > 0) {
