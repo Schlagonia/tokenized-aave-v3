@@ -236,7 +236,9 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     function availableWithdrawLimit(
         address /*_owner*/
     ) public view override returns (uint256) {
-        return ERC20(asset).balanceOf(address(aToken));
+        return
+            TokenizedStrategy.totalIdle() +
+            ERC20(asset).balanceOf(address(aToken));
     }
 
     /**
@@ -244,6 +246,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      * @dev This can be used if the rewards controller has since removed a reward
      * token so the normal harvest flow doesnt work. Or for retroactive airdrops.
      * @param _token The address of the token to sell.
+     * @param _minAmountOut The minimum of `asset` to get out.
      */
     function sellRewardManually(
         address _token,
