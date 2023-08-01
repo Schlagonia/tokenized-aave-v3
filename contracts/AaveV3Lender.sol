@@ -213,7 +213,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
 
-            if (token == asset || dontSell[token]) {
+            if (token == asset) {
                 continue;
             } else {
                 uint256 balance = ERC20(token).balanceOf(address(this));
@@ -300,10 +300,37 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     }
 
     /**
+     * @notice Gets the max amount of `asset` that can be withdrawn.
+     * @dev Defaults to an unlimited amount for any address. But can
+     * be overriden by strategists.
+     *
+     * This function will be called before any withdraw or redeem to enforce
+     * any limits desired by the strategist. This can be used for illiquid
+     * or sandwhichable strategies. It should never be lower than `totalIdle`.
+     *
+     *   EX:
+     *       return TokenIzedStrategy.totalIdle();
+     *
+     * This does not need to take into account the `_owner`'s share balance
+     * or conversion rates from shares to assets.
+     *
+     * @param . The address that is withdrawing from the strategy.
+     * @return . The avialable amount that can be withdrawn in terms of `asset`
+     */
+    function availableWithdrawLimit(
+        address /*_owner*/
+    ) public view override returns (uint256) {
+        return
+            TokenizedStrategy.totalIdle() +
+            ERC20(asset).balanceOf(address(aToken));
+    }
+
+    /**
      * @notice Allows `management` to manually swap a token the strategy holds.
      * @dev This can be used if the rewards controller has since removed a reward
      * token so the normal harvest flow doesnt work. Or for retroactive airdrops.
      * @param _token The address of the token to sell.
+     * @param _minAmountOut The minimum of `asset` to get out.
      */
     function sellRewardManually(
         address _token,
