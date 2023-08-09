@@ -54,4 +54,15 @@ contract AaveV3LenderFactory {
         emit NewAaveV3Lender(address(newStrategy), _asset);
         return address(newStrategy);
     }
+
+    function setAddresses(
+        address _management,
+        address _perfomanceFeeRecipient,
+        address _keeper
+    ) external {
+        require(msg.sender == management, "!management");
+        management = _management;
+        perfomanceFeeRecipient = _perfomanceFeeRecipient;
+        keeper = _keeper;
+    }
 }
