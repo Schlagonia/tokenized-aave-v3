@@ -336,9 +336,12 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         address _token,
         uint256 _minAmountOut
     ) external onlyManagement {
-        uint256 balance = ERC20(_token).balanceOf(address(this));
-        // Swap from will do min check
-        _swapFrom(_token, asset, balance, _minAmountOut);
+        _swapFrom(
+            _token,
+            asset,
+            ERC20(_token).balanceOf(address(this)),
+            _minAmountOut
+        );
     }
 
     /**
