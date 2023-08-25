@@ -261,7 +261,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         if (supplyCap <= supply) return 0;
 
         // Return the remaining room.
-        return supplyCap - aToken.totalSupply();
+        return supplyCap - supply;
     }
 
     /**
@@ -269,9 +269,12 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      * @return The supply cap
      */
     function getSupplyCap() public view returns (uint256) {
+        // Get the bit map data config.
         uint256 data = lendingPool.getReserveData(asset).configuration.data;
+        // Get out the supply cap for the asset.
         uint256 cap = (data & ~SUPPLY_CAP_MASK) >>
             SUPPLY_CAP_START_BIT_POSITION;
+        // Adjust to the correct decimals.
         return cap * (10 ** decimals);
     }
 
