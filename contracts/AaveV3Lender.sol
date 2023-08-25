@@ -9,7 +9,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {IAToken} from "./interfaces/Aave/V3/IAtoken.sol";
 import {IStakedAave} from "./interfaces/Aave/V3/IStakedAave.sol";
-import {IPool} from "./interfaces/Aave/V3/IPool.sol";
+import {IPool, DataTypesV3} from "./interfaces/Aave/V3/IPool.sol";
 import {IProtocolDataProvider} from "./interfaces/Aave/V3/IProtocolDataProvider.sol";
 import {IRewardsController} from "./interfaces/Aave/V3/IRewardsController.sol";
 
@@ -22,6 +22,11 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     // The pool to deposit and withdraw through.
     IPool public constant lendingPool =
         IPool(0x794a61358D6845594F94dc1DB02A252b5b4814aD);
+
+    // To get the Supply cap of an asset.
+    uint256 internal constant SUPPLY_CAP_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFF000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFF; // prettier-ignore
+    uint256 internal constant SUPPLY_CAP_START_BIT_POSITION = 116;
+    uint256 internal immutable decimals;
 
     // The a Token specific rewards contract for claiming rewards.
     IRewardsController public immutable rewardsController;
@@ -48,6 +53,9 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         // Make sure its a real token.
         require(address(aToken) != address(0), "!aToken");
 
+        // Get aToken decimals for supply caps.
+        decimals = ERC20(address(aToken)).decimals();
+
         // Set the rewards controller
         rewardsController = aToken.getIncentivesController();
 
@@ -56,7 +64,6 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
 
         // Set uni swapper values
         // We will use the minAmountToSell mapping instead.
-        minAmountToSell = 0;
         base = 0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619;
         router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
     }
@@ -179,7 +186,12 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
             // deposit any loose funds
             uint256 looseAsset = ERC20(asset).balanceOf(address(this));
             if (looseAsset > 0) {
-                lendingPool.supply(asset, looseAsset, address(this), 0);
+                lendingPool.supply(
+                    asset,
+                    Math.min(looseAsset, availableDepositLimit(address(this))),
+                    address(this),
+                    0
+                );
             }
         }
 
@@ -216,6 +228,54 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     }
 
     /**
+     * @notice Gets the max amount of `asset` that an address can deposit.
+     * @dev Defaults to an unlimited amount for any address. But can
+     * be overriden by strategists.
+     *
+     * This function will be called before any deposit or mints to enforce
+     * any limits desired by the strategist. This can be used for either a
+     * traditional deposit limit or for implementing a whitelist etc.
+     *
+     *   EX:
+     *      if(isAllowed[_owner]) return super.availableDepositLimit(_owner);
+     *
+     * This does not need to take into account any conversion rates
+     * from shares to assets. But should know that any non max uint256
+     * amounts may be converted to shares. So it is recommended to keep
+     * custom amounts low enough as not to cause overflow when multiplied
+     * by `totalSupply`.
+     *
+     * @param . The address that is depositing into the strategy.
+     * @return . The available amount the `_owner` can deposit in terms of `asset`
+     */
+    function availableDepositLimit(
+        address /*_owner*/
+    ) public view override returns (uint256) {
+        uint256 supplyCap = getSupplyCap();
+
+        // If we have no supply cap.
+        if (supplyCap == 0) return type(uint256).max;
+
+        uint256 supply = aToken.totalSupply();
+        // If we already hit the cap.
+        if (supplyCap <= supply) return 0;
+
+        // Return the remaining room.
+        return supplyCap - aToken.totalSupply();
+    }
+
+    /**
+     * @notice Gets the supply cap of the reserve
+     * @return The supply cap
+     */
+    function getSupplyCap() public view returns (uint256) {
+        uint256 data = lendingPool.getReserveData(asset).configuration.data;
+        uint256 cap = (data & ~SUPPLY_CAP_MASK) >>
+            SUPPLY_CAP_START_BIT_POSITION;
+        return cap * (10 ** decimals);
+    }
+
+    /**
      * @notice Gets the max amount of `asset` that can be withdrawn.
      * @dev Defaults to an unlimited amount for any address. But can
      * be overriden by strategists.
@@ -244,18 +304,22 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     /**
      * @notice Allows `management` to manually swap a token the strategy holds.
      * @dev This can be used if the rewards controller has since removed a reward
-     * token so the normal harvest flow doesnt work. Or for retroactive airdrops.
+     * token so the normal harvest flow doesnt work, for retroactive airdrops.
+     * or just to slowly sell tokens at specific times rather than during harvests.
+     *
      * @param _token The address of the token to sell.
+     * @param _amount The amount of `_token` to sell.
      * @param _minAmountOut The minimum of `asset` to get out.
      */
     function sellRewardManually(
         address _token,
+        uint256 _amount,
         uint256 _minAmountOut
     ) external onlyManagement {
         _swapFrom(
             _token,
             asset,
-            ERC20(_token).balanceOf(address(this)),
+            Math.min(_amount, ERC20(_token).balanceOf(address(this))),
             _minAmountOut
         );
     }
