@@ -215,7 +215,7 @@ def test__factory_deployed__reward_selling(
     aave.transfer(strategy, aave_amount, sender=whale)
     assert aave.balanceOf(strategy) == aave_amount
 
-    strategy.sellRewardManually(aave.address, 0, sender=management)
+    strategy.sellRewardManually(aave.address, aave_amount, 0, sender=management)
 
     before_pps = strategy.pricePerShare()
 
