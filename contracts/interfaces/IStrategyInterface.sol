@@ -15,7 +15,11 @@ interface IStrategyInterface is IStrategy, IUniswapV3Swapper {
 
     function setMinAmountToSell(uint256 _minAmountToSell) external;
 
-    function sellRewardManually(address _token, uint256 _minAmountOut) external;
+    function sellRewardManually(
+        address _token,
+        uint256 _amount,
+        uint256 _minAmountOut
+    ) external;
 
     function setMinAmountToSellMapping(
         address _token,
@@ -23,4 +27,6 @@ interface IStrategyInterface is IStrategy, IUniswapV3Swapper {
     ) external;
 
     function setClaimRewards(bool _bool) external;
+
+    function getSupplyCap() external view returns (uint256);
 }
