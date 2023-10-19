@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.18;
 
-import {BaseTokenizedStrategy} from "@tokenized-strategy/BaseTokenizedStrategy.sol";
+import {BaseStrategy} from "@tokenized-strategy/BaseStrategy.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
@@ -16,7 +16,7 @@ import {IRewardsController} from "./interfaces/Aave/V3/IRewardsController.sol";
 // Uniswap V3 Swapper
 import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
 
-contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
+contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
     using SafeERC20 for ERC20;
 
     // The pool to deposit and withdraw through.
@@ -46,7 +46,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     constructor(
         address _asset,
         string memory _name
-    ) BaseTokenizedStrategy(_asset, _name) {
+    ) BaseStrategy(_asset, _name) {
         // Set the aToken based on the asset we are using.
         aToken = IAToken(lendingPool.getReserveData(_asset).aTokenAddress);
 
@@ -60,7 +60,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         rewardsController = aToken.getIncentivesController();
 
         // Make approve the lending pool for cheaper deposits.
-        ERC20(_asset).safeApprove(address(lendingPool), type(uint256).max);
+        asset.safeApprove(address(lendingPool), type(uint256).max);
 
         // Set uni swapper values
         // We will use the minAmountToSell mapping instead.
@@ -73,7 +73,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      * @dev External function available to management to set
      * the fees used in the `UniswapV3Swapper.
      *
-     * Any incentived tokens will need a fee to be set for each
+     * Any incentivized tokens will need a fee to be set for each
      * reward token that it wishes to swap on reports.
      *
      * @param _token0 The first token of the pair.
@@ -102,7 +102,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     }
 
     /*//////////////////////////////////////////////////////////////
-                NEEDED TO BE OVERRIDEN BY STRATEGIST
+                NEEDED TO BE OVERRIDDEN BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
 
     /**
@@ -110,14 +110,14 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      *
      * This function is called at the end of a {deposit} or {mint}
      * call. Meaning that unless a whitelist is implemented it will
-     * be entirely permsionless and thus can be sandwhiched or otherwise
+     * be entirely permissionless and thus can be sandwiched or otherwise
      * manipulated.
      *
-     * @param _amount The amount of 'asset' that the strategy should attemppt
+     * @param _amount The amount of 'asset' that the strategy should attempt
      * to deposit in the yield source.
      */
     function _deployFunds(uint256 _amount) internal override {
-        lendingPool.supply(asset, _amount, address(this), 0);
+        lendingPool.supply(address(asset), _amount, address(this), 0);
     }
 
     /**
@@ -126,25 +126,27 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      * The amount of 'asset' that is already loose has already
      * been accounted for.
      *
-     * Should do any needed parameter checks, '_amount' may be more
-     * than is actually available.
-     *
-     * This function is called {withdraw} and {redeem} calls.
+     * This function is called during {withdraw} and {redeem} calls.
      * Meaning that unless a whitelist is implemented it will be
-     * entirely permsionless and thus can be sandwhiched or otherwise
+     * entirely permissionless and thus can be sandwiched or otherwise
      * manipulated.
      *
      * Should not rely on asset.balanceOf(address(this)) calls other than
-     * for diff accounting puroposes.
+     * for diff accounting purposes.
+     *
+     * Any difference between `_amount` and what is actually freed will be
+     * counted as a loss and passed on to the withdrawer. This means
+     * care should be taken in times of illiquidity. It may be better to revert
+     * if withdraws are simply illiquid so not to realize incorrect losses.
      *
      * @param _amount, The amount of 'asset' to be freed.
      */
     function _freeFunds(uint256 _amount) internal override {
-        // We dont check available liquidity because we need the tx to
-        // revert if there is not enough liquidity so we dont improperly
+        // We don't check available liquidity because we need the tx to
+        // revert if there is not enough liquidity so we don't improperly
         // pass a loss on to the user withdrawing.
         lendingPool.withdraw(
-            asset,
+            address(asset),
             Math.min(aToken.balanceOf(address(this)), _amount),
             address(this)
         );
@@ -177,17 +179,17 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         override
         returns (uint256 _totalAssets)
     {
-        if (!TokenizedStrategy.isShutdown()) {
-            if (claimRewards) {
-                // Claim and sell any rewards to `asset`.
-                _claimAndSellRewards();
-            }
+        if (claimRewards) {
+            // Claim and sell any rewards to `asset`.
+            _claimAndSellRewards();
+        }
 
+        if (!TokenizedStrategy.isShutdown()) {
             // deposit any loose funds
-            uint256 looseAsset = ERC20(asset).balanceOf(address(this));
+            uint256 looseAsset = asset.balanceOf(address(this));
             if (looseAsset > 0) {
                 lendingPool.supply(
-                    asset,
+                    address(asset),
                     Math.min(looseAsset, availableDepositLimit(address(this))),
                     address(this),
                     0
@@ -197,7 +199,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
 
         _totalAssets =
             aToken.balanceOf(address(this)) +
-            ERC20(asset).balanceOf(address(this));
+            asset.balanceOf(address(this));
     }
 
     /**
@@ -215,13 +217,13 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
 
-            if (token == asset) {
+            if (token == address(asset)) {
                 continue;
             } else {
                 uint256 balance = ERC20(token).balanceOf(address(this));
 
                 if (balance > minAmountToSellMapping[token]) {
-                    _swapFrom(token, asset, balance, 0);
+                    _swapFrom(token, address(asset), balance, 0);
                 }
             }
         }
@@ -230,7 +232,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     /**
      * @notice Gets the max amount of `asset` that an address can deposit.
      * @dev Defaults to an unlimited amount for any address. But can
-     * be overriden by strategists.
+     * be overridden by strategists.
      *
      * This function will be called before any deposit or mints to enforce
      * any limits desired by the strategist. This can be used for either a
@@ -270,7 +272,10 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      */
     function getSupplyCap() public view returns (uint256) {
         // Get the bit map data config.
-        uint256 data = lendingPool.getReserveData(asset).configuration.data;
+        uint256 data = lendingPool
+            .getReserveData(address(asset))
+            .configuration
+            .data;
         // Get out the supply cap for the asset.
         uint256 cap = (data & ~SUPPLY_CAP_MASK) >>
             SUPPLY_CAP_START_BIT_POSITION;
@@ -281,11 +286,11 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     /**
      * @notice Gets the max amount of `asset` that can be withdrawn.
      * @dev Defaults to an unlimited amount for any address. But can
-     * be overriden by strategists.
+     * be overridden by strategists.
      *
      * This function will be called before any withdraw or redeem to enforce
      * any limits desired by the strategist. This can be used for illiquid
-     * or sandwhichable strategies. It should never be lower than `totalIdle`.
+     * or sandwichable strategies. It should never be lower than `totalIdle`.
      *
      *   EX:
      *       return TokenIzedStrategy.totalIdle();
@@ -294,20 +299,18 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      * or conversion rates from shares to assets.
      *
      * @param . The address that is withdrawing from the strategy.
-     * @return . The avialable amount that can be withdrawn in terms of `asset`
+     * @return . The available amount that can be withdrawn in terms of `asset`
      */
     function availableWithdrawLimit(
         address /*_owner*/
     ) public view override returns (uint256) {
-        return
-            TokenizedStrategy.totalIdle() +
-            ERC20(asset).balanceOf(address(aToken));
+        return TokenizedStrategy.totalIdle() + asset.balanceOf(address(aToken));
     }
 
     /**
      * @notice Allows `management` to manually swap a token the strategy holds.
      * @dev This can be used if the rewards controller has since removed a reward
-     * token so the normal harvest flow doesnt work, for retroactive airdrops.
+     * token so the normal harvest flow doesn't work, for retroactive airdrops.
      * or just to slowly sell tokens at specific times rather than during harvests.
      *
      * @param _token The address of the token to sell.
@@ -321,7 +324,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     ) external onlyManagement {
         _swapFrom(
             _token,
-            asset,
+            address(asset),
             Math.min(_amount, ERC20(_token).balanceOf(address(this))),
             _minAmountOut
         );
@@ -330,7 +333,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
     /**
      * @notice Set the `minAmountToSellMapping` for a specific `_token`.
      * @dev This can be used by management to adjust wether or not the
-     * _calimAndSellRewards() function will attempt to sell a specific
+     * _claimAndSellRewards() function will attempt to sell a specific
      * reward token. This can be used if liquidity is to low, amounts
      * are to low or any other reason that may cause reverts.
      *
@@ -375,7 +378,7 @@ contract AaveV3Lender is BaseTokenizedStrategy, UniswapV3Swapper {
      */
     function _emergencyWithdraw(uint256 _amount) internal override {
         lendingPool.withdraw(
-            asset,
+            address(asset),
             Math.min(_amount, aToken.balanceOf(address(this))),
             address(this)
         );
