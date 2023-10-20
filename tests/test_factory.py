@@ -397,7 +397,7 @@ def test__factroy_deployed__access(
     assert strategy.uniFees(aave, weth) == 300
     assert strategy.uniFees(weth, aave) == 300
 
-    with reverts("!Authorized"):
+    with reverts("!management"):
         strategy.setUniFees(weth, aave, 0, sender=user)
 
     assert strategy.uniFees(aave, weth) == 300
@@ -411,10 +411,10 @@ def test__factroy_deployed__access(
 
     assert strategy.minAmountToSell() == amount
 
-    with reverts("!Authorized"):
+    with reverts("!management"):
         strategy.setMinAmountToSell(int(1e12), sender=user)
 
     assert strategy.minAmountToSell() == amount
 
-    with reverts("!Authorized"):
+    with reverts("!emergency authorized"):
         strategy.emergencyWithdraw(100, sender=user)
