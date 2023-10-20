@@ -15,11 +15,11 @@ def deploy():
 
 
 def publish():
-    factory = project.AaveV3Lender.at("0xc5eB11591636ac0794C149CEd926846105f61b17")
+    factory = project.AaveV3Lender.at("")
 
     networks.provider.network.explorer.publish_contract(factory)
 
 
 def main():
-    publish()
-    # deploy()
+    # publish()
+    deploy()

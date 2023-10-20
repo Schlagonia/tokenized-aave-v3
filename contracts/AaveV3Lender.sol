@@ -1,16 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.18;
 
-import {BaseStrategy} from "@tokenized-strategy/BaseStrategy.sol";
+import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IAToken} from "./interfaces/Aave/V3/IAtoken.sol";
-import {IStakedAave} from "./interfaces/Aave/V3/IStakedAave.sol";
 import {IPool, DataTypesV3} from "./interfaces/Aave/V3/IPool.sol";
-import {IProtocolDataProvider} from "./interfaces/Aave/V3/IProtocolDataProvider.sol";
 import {IRewardsController} from "./interfaces/Aave/V3/IRewardsController.sol";
 
 // Uniswap V3 Swapper
@@ -363,7 +360,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
      * This should attempt to free `_amount`, noting that `_amount` may
      * be more than is currently deployed.
      *
-     * NOTE: This will not realize any profits or losses. A seperate
+     * NOTE: This will not realize any profits or losses. A separate
      * {report} will be needed in order to record any profit/loss. If
      * a report may need to be called after a shutdown it is important
      * to check if the strategy is shutdown during {_harvestAndReport}
