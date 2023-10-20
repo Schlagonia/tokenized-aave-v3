@@ -42,7 +42,7 @@ def test__set_uni_fees__reverts(
     assert strategy.uniFees(aave, weth) == 0
     assert strategy.uniFees(weth, aave) == 0
 
-    with reverts("!Authorized"):
+    with reverts("!management"):
         strategy.setUniFees(weth, aave, 500, sender=user)
 
     assert strategy.uniFees(aave, weth) == 0
@@ -105,7 +105,7 @@ def test__set_dont_sell__reverts(
 ):
     assert strategy.claimRewards() == True
 
-    with reverts("!Authorized"):
+    with reverts("!management"):
         strategy.setClaimRewards(False, sender=user)
 
     assert strategy.claimRewards() == True
@@ -117,7 +117,7 @@ def test__set_min_amount_to_sell__reverts(
 ):
     assert strategy.minAmountToSell() == 0
 
-    with reverts("!Authorized"):
+    with reverts("!management"):
         strategy.setMinAmountToSell(int(1e4), sender=user)
 
     assert strategy.minAmountToSell() == 0
@@ -126,14 +126,14 @@ def test__set_min_amount_to_sell__reverts(
 def test__set_min_amount_to_sell_mapping__reverts(strategy, user, aave):
     assert strategy.minAmountToSellMapping(aave) == 0
 
-    with reverts("!Authorized"):
+    with reverts("!management"):
         strategy.setMinAmountToSellMapping(aave, int(1e4), sender=user)
 
     assert strategy.minAmountToSellMapping(aave) == 0
 
 
 def test__emergency_withdraw__reverts(strategy, user, deposit, amount):
-    with reverts("!Authorized"):
+    with reverts("!emergency authorized"):
         strategy.emergencyWithdraw(100, sender=user)
 
     deposit()
@@ -142,5 +142,5 @@ def test__emergency_withdraw__reverts(strategy, user, deposit, amount):
         strategy, total_assets=amount, total_debt=amount, total_idle=0
     )
 
-    with reverts("!Authorized"):
+    with reverts("!emergency authorized"):
         strategy.emergencyWithdraw(100, sender=user)
