@@ -1,10 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.18;
 
+import {IStrategyInterface} from "../interfaces/IStrategyInterface.sol";
+
 import {AprOracleBase} from "@periphery/AprOracle/AprOracleBase.sol";
+import {IPool, DataTypesV3} from "../interfaces/Aave/V3/IPool.sol";
+import {IProtocolDataProvider} from "../interfaces/Aave/V3/IProtocolDataProvider.sol";
+import {IReserveInterestRateStrategy} from "../interfaces/Aave/V3/IReserveInterestRateStrategy.sol";
 
 contract StrategyAprOracle is AprOracleBase {
-    constructor() AprOracleBase("Strategy Apr Oracle Example", msg.sender) {}
+    IPool public constant lendingPool =
+        IPool(0x794a61358D6845594F94dc1DB02A252b5b4814aD);
+
+    IProtocolDataProvider public constant protocolDataProvider =
+        IProtocolDataProvider(0x69FA688f1Dc47d4B5d8029D5a35FB7a548310654);
+
+    constructor() AprOracleBase("Aave V3 Apr oracle", msg.sender) {}
 
     /**
      * @notice Will return the expected Apr of a strategy post a debt change.
@@ -29,8 +40,48 @@ contract StrategyAprOracle is AprOracleBase {
         address _strategy,
         int256 _delta
     ) external view override returns (uint256) {
-        // TODO: Implement any necessary logic to return the most accurate
-        //      APR estimation for the strategy.
-        return 1e17;
+        address asset = IStrategyInterface(_strategy).asset();
+        address aToken = IStrategyInterface(_strategy).aToken();
+        //need to calculate new supplyRate after Deposit (when deposit has not been done yet)
+        DataTypesV3.ReserveData memory reserveData = lendingPool.getReserveData(
+            asset
+        );
+
+        (
+            uint256 unbacked,
+            ,
+            ,
+            uint256 totalStableDebt,
+            uint256 totalVariableDebt,
+            ,
+            ,
+            ,
+            uint256 averageStableBorrowRate,
+            ,
+            ,
+
+        ) = protocolDataProvider.getReserveData(asset);
+
+        (, , , , uint256 reserveFactor, , , , , ) = protocolDataProvider
+            .getReserveConfigurationData(asset);
+
+        DataTypesV3.CalculateInterestRatesParams memory params = DataTypesV3
+            .CalculateInterestRatesParams(
+                unbacked,
+                _delta > 0 ? uint256(_delta) : 0,
+                _delta < 0 ? uint256(-1 * _delta) : 0,
+                totalStableDebt,
+                totalVariableDebt,
+                averageStableBorrowRate,
+                reserveFactor,
+                asset,
+                aToken
+            );
+
+        (uint256 newLiquidityRate, , ) = IReserveInterestRateStrategy(
+            reserveData.interestRateStrategyAddress
+        ).calculateInterestRates(params);
+
+        return newLiquidityRate / 1e9; // divided by 1e9 to go from Ray to Wad
     }
 }
