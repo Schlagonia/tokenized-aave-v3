@@ -21,6 +21,11 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
     IPool public constant lendingPool =
         IPool(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
 
+    IStakedAave internal constant stkAave =
+        IStakedAave(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
+    address internal constant AAVE =
+        address(0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9);
+
     // To get the Supply cap of an asset.
     uint256 internal constant SUPPLY_CAP_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFF000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFF; // prettier-ignore
     uint256 internal constant SUPPLY_CAP_START_BIT_POSITION = 116;
@@ -40,15 +45,6 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
     // or to set to uin256.max if selling a reward token is reverting
     // to allow for reports to still work properly.
     mapping(address => uint256) public minAmountToSellMapping;
-
-    // The token that we get in return for deposits.
-    IAToken public immutable aToken;
-
-    // Mapping to be set by management for any reward tokens
-    // that should not or can not be sold. This can be used
-    // if selling a reward token is reverting to allow for
-    // reports to still work properly.
-    mapping(address => bool) public dontSell;
 
     constructor(
         address _asset,
@@ -107,8 +103,8 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
      * call. Meaning that unless a whitelist is implemented it will
      * be entirely permissionless and thus can be sandwiched or otherwise
      * manipulated.
-     * 
-     * @param _amount The amount of 'asset' that the strategy should attemppt
+     *
+     * @param _amount The amount of 'asset' that the strategy should attempt
      * to deposit in the yield source.
      */
     function _deployFunds(uint256 _amount) internal override {
@@ -142,9 +138,6 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
      * @param _amount, The amount of 'asset' to be freed.
      */
     function _freeFunds(uint256 _amount) internal override {
-        // We don't check available liquidity because we need the tx to
-        // revert if there is not enough liquidity so we don't improperly
-        // pass a loss on to the user withdrawing.
         lendingPool.withdraw(
             address(asset),
             Math.min(aToken.balanceOf(address(this)), _amount),
@@ -206,6 +199,8 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
      * @notice Used to claim any pending rewards and sell them to asset.
      */
     function _claimAndSellRewards() internal {
+        _redeemAave();
+
         //claim all rewards
         address[] memory assets = new address[](1);
         assets[0] = address(aToken);
@@ -219,6 +214,8 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
 
             if (token == address(asset)) {
                 continue;
+            } else if (token == address(stkAave)) {
+                _harvestStkAave();
             } else {
                 uint256 balance = ERC20(token).balanceOf(address(this));
 
@@ -243,7 +240,12 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
         }
 
         // sell AAVE for want
-        _swapFrom(AAVE, asset, ERC20(AAVE).balanceOf(address(this)), 0);
+        _swapFrom(
+            AAVE,
+            address(asset),
+            ERC20(AAVE).balanceOf(address(this)),
+            0
+        );
     }
 
     function checkCooldown() public view returns (bool) {
@@ -277,30 +279,6 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
 
     function manualRedeemAave() external onlyKeepers {
         _redeemAave();
-    }
-
-    /**
-     * @notice Gets the max amount of `asset` that can be withdrawn.
-     * @dev Defaults to an unlimited amount for any address. But can
-     * be overriden by strategists.
-     *
-     * This function will be called before any withdraw or redeem to enforce
-     * any limits desired by the strategist. This can be used for illiquid
-     * or sandwhichable strategies. It should never be lower than `totalIdle`.
-     *
-     *   EX:
-     *       return TokenIzedStrategy.totalIdle();
-     *
-     * This does not need to take into account the `_owner`'s share balance
-     * or conversion rates from shares to assets.
-     *
-     * @param . The address that is withdrawing from the strategy.
-     * @return . The avialable amount that can be withdrawn in terms of `asset`
-     */
-    function availableWithdrawLimit(
-        address /*_owner*/
-    ) public view override returns (uint256) {
-        return ERC20(asset).balanceOf(address(aToken));
     }
 
     /**
