@@ -10,10 +10,10 @@ import {IReserveInterestRateStrategy} from "../interfaces/Aave/V3/IReserveIntere
 
 contract StrategyAprOracle is AprOracleBase {
     IPool public constant lendingPool =
-        IPool(0x794a61358D6845594F94dc1DB02A252b5b4814aD);
+        IPool(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
 
     IProtocolDataProvider public constant protocolDataProvider =
-        IProtocolDataProvider(0x69FA688f1Dc47d4B5d8029D5a35FB7a548310654);
+        IProtocolDataProvider(0x7B4EB56E7CD4b454BA8ff71E4518426369a138a3);
 
     constructor() AprOracleBase("Aave V3 Apr oracle", msg.sender) {}
 

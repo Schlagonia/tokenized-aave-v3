@@ -8,12 +8,12 @@ plugins:
   - name: alchemy
   - name: polygon
   
-default_ecosystem: polygon
+default_ecosystem: ethereum
 
 dependencies:
   - name: openzeppelin
     github: OpenZeppelin/openzeppelin-contracts
-    ref: 4.8.2
+    version: 4.9.5
   - name: tokenized-strategy
     github: yearn/tokenized-strategy
     ref: v3.0.1
@@ -26,17 +26,17 @@ dependencies:
 
 solidity:
   import_remapping:
-    - "@openzeppelin/contracts=openzeppelin/v4.8.2"
+    - "@openzeppelin/contracts=openzeppelin/v4.9.5"
     - "@tokenized-strategy=tokenized-strategy/v3.0.1"
     - "@periphery=periphery/master"
 
-polygon:
+ethereum:
   default_network: mainnet-fork
   mainnet_fork:
     default_provider: hardhat
 
 hardhat:
   fork:
-    polygon:
+    ethereum:
       mainnet:
-        upstream_provider: alchemy
+        upstream_provider: infura

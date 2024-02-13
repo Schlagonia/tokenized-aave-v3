@@ -96,19 +96,6 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
         _setUniFees(_token0, _token1, _fee);
     }
 
-    /**
-     * @notice Set the min amount to sell.
-     * @dev External function available to management to set
-     * the `minAmountToSell` variable in the `UniswapV3Swapper`.
-     *
-     * @param _minAmountToSell The min amount of tokens to sell.
-     */
-    function setMinAmountToSell(
-        uint256 _minAmountToSell
-    ) external onlyManagement {
-        minAmountToSell = _minAmountToSell;
-    }
-
     /*//////////////////////////////////////////////////////////////
                 NEEDED TO BE OVERRIDDEN BY STRATEGIST
     //////////////////////////////////////////////////////////////*/
@@ -340,7 +327,16 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
     function availableDepositLimit(
         address /*_owner*/
     ) public view override returns (uint256) {
-        uint256 supplyCap = getSupplyCap();
+        // Get the data configuration bitmap.
+        uint256 _data = lendingPool
+            .getReserveData(address(asset))
+            .configuration
+            .data;
+
+        // Cannot deposit when paused of frozen.
+        if (_isPaused(_data) || _isFrozen(_data)) return 0;
+
+        uint256 supplyCap = _getSupplyCap(_data);
 
         // If we have no supply cap.
         if (supplyCap == 0) return type(uint256).max;
@@ -358,16 +354,42 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
      * @return The supply cap
      */
     function getSupplyCap() public view returns (uint256) {
-        // Get the bit map data config.
-        uint256 data = lendingPool
-            .getReserveData(address(asset))
-            .configuration
-            .data;
+        _getSupplyCap(
+            lendingPool.getReserveData(address(asset)).configuration.data
+        );
+    }
+
+    /**
+     * @dev Given the data configuration returns the supply cap.
+     */
+    function _getSupplyCap(uint256 _data) internal view returns (uint256) {
         // Get out the supply cap for the asset.
-        uint256 cap = (data & ~SUPPLY_CAP_MASK) >>
+        uint256 cap = (_data & ~SUPPLY_CAP_MASK) >>
             SUPPLY_CAP_START_BIT_POSITION;
         // Adjust to the correct decimals.
         return cap * (10 ** decimals);
+    }
+
+    /**
+     * @dev Paused flag is at the 60th bit
+     */
+    function _isPaused(uint256 _data) internal view returns (bool) {
+        // Create a mask with only the 60th bit set
+        uint256 mask = 1 << 60; // Bitwise left shift by 59 positions
+
+        // Perform bitwise AND operation to check if the 60th bit is 0.
+        return (_data & mask) != 0;
+    }
+
+    /**
+     * @dev Frozen flag is at the 57th bit.
+     */
+    function _isFrozen(uint256 _data) internal view returns (bool) {
+        // Create a mask with only the 57th bit set
+        uint256 mask = 1 << 57; // Bitwise left shift by 56 positions
+
+        // Perform bitwise AND operation to check if the 57th bit 0.
+        return (_data & mask) != 0;
     }
 
     /**
@@ -391,7 +413,16 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
     function availableWithdrawLimit(
         address /*_owner*/
     ) public view override returns (uint256) {
-        return TokenizedStrategy.totalIdle() + asset.balanceOf(address(aToken));
+        uint256 liquidity = asset.balanceOf(address(aToken));
+
+        // Cannot withdraw from the pool when paused.
+        if (
+            _isPaused(
+                lendingPool.getReserveData(address(asset)).configuration.data
+            )
+        ) liquidity = 0;
+
+        return TokenizedStrategy.totalIdle() + liquidity;
     }
 
     /**
@@ -464,10 +495,6 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
      * @param _amount The amount of asset to attempt to free.
      */
     function _emergencyWithdraw(uint256 _amount) internal override {
-        lendingPool.withdraw(
-            address(asset),
-            Math.min(_amount, aToken.balanceOf(address(this))),
-            address(this)
-        );
+        _freeFunds(_amount);
     }
 }

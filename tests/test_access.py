@@ -64,25 +64,6 @@ def test__claim_rewards(
     assert strategy.claimRewards() == True
 
 
-def test__set_min_amount_to_sell(
-    strategy,
-    management,
-):
-    assert strategy.minAmountToSell() == 0
-
-    amount = int(1e4)
-
-    strategy.setMinAmountToSell(amount, sender=management)
-
-    assert strategy.minAmountToSell() == amount
-
-    amount = int(100e18)
-
-    strategy.setMinAmountToSell(amount, sender=management)
-
-    assert strategy.minAmountToSell() == amount
-
-
 def test__set_min_amount_to_sell_mapping(strategy, management, aave):
     assert strategy.minAmountToSellMapping(aave) == 0
 
@@ -109,18 +90,6 @@ def test__set_dont_sell__reverts(
         strategy.setClaimRewards(False, sender=user)
 
     assert strategy.claimRewards() == True
-
-
-def test__set_min_amount_to_sell__reverts(
-    strategy,
-    user,
-):
-    assert strategy.minAmountToSell() == 0
-
-    with reverts("!management"):
-        strategy.setMinAmountToSell(int(1e4), sender=user)
-
-    assert strategy.minAmountToSell() == 0
 
 
 def test__set_min_amount_to_sell_mapping__reverts(strategy, user, aave):

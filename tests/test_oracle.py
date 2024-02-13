@@ -6,8 +6,6 @@ import pytest
 
 
 def check_oracle(oracle, strategy, user, management):
-    # Check set up
-    # TODO: Add checks for the setup
 
     current_apr = oracle.aprAfterDebtChange(strategy.address, 0)
 
@@ -15,13 +13,13 @@ def check_oracle(oracle, strategy, user, management):
     # If APR is expected to be under 100%
     assert current_apr < int(1e18)
 
-    new_apr = oracle.aprAfterDebtChange(strategy, 10000)
+    new_apr = oracle.aprAfterDebtChange(strategy, 100000000)
 
     assert new_apr < current_apr
 
-    lower_apr = oracle.aprAfterDebtChange(strategy, -10000)
+    higher_apr = oracle.aprAfterDebtChange(strategy, -100000000)
 
-    assert lower_apr < current_apr
+    assert higher_apr > current_apr
 
     print(f"Current apr {oracle.aprAfterDebtChange(strategy, 0)}")
 

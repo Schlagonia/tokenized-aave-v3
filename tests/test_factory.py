@@ -101,8 +101,6 @@ def test__factory_deployed__profitable_report(
 
     # set uni fees for swap
     strategy.setUniFees(aave, asset, aave_fee, sender=management)
-    # allow any amount of swaps
-    strategy.setMinAmountToSell(0, sender=management)
 
     asset.transfer(user, amount, sender=whale)
 
@@ -190,8 +188,6 @@ def test__factory_deployed__reward_selling(
 
     # set uni fees for swap
     strategy.setUniFees(aave, asset, aave_fee, sender=management)
-    # allow any amount of swaps
-    strategy.setMinAmountToSell(0, sender=management)
 
     # Deposit to the strategy
     user_balance_before = asset.balanceOf(user)
@@ -367,19 +363,6 @@ def test__factroy_deployed__access(
 
     assert strategy.uniFees(aave, weth) == 300
     assert strategy.uniFees(weth, aave) == 300
-
-    assert strategy.minAmountToSell() == 0
-
-    amount = int(1e4)
-
-    strategy.setMinAmountToSell(amount, sender=management)
-
-    assert strategy.minAmountToSell() == amount
-
-    with reverts("!management"):
-        strategy.setMinAmountToSell(int(1e12), sender=user)
-
-    assert strategy.minAmountToSell() == amount
 
     with reverts("!emergency authorized"):
         strategy.emergencyWithdraw(100, sender=user)
