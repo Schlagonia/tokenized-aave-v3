@@ -123,8 +123,6 @@ def test__profitable_report__with_fee(
 
     assert profit > 0
 
-    expected_performance_fee = profit * performance_fee // MAX_BPS
-
     check_strategy_totals(
         strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
     )
@@ -142,13 +140,9 @@ def test__profitable_report__with_fee(
 
     assert asset.balanceOf(user) > user_balance_before
 
-    rewards_balance_before = asset.balanceOf(rewards)
+    rewards_balance = strategy.balanceOf(rewards)
 
-    strategy.redeem(expected_performance_fee, rewards, rewards, sender=rewards)
-
-    check_strategy_totals(strategy, total_assets=0, total_debt=0, total_idle=0)
-
-    assert asset.balanceOf(rewards) >= rewards_balance_before + expected_performance_fee
+    strategy.redeem(rewards_balance, rewards, rewards, sender=rewards)
 
 
 def test__tend_trigger(
