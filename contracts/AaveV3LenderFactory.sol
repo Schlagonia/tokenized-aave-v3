@@ -5,11 +5,17 @@ import {AaveV3Lender} from "./AaveV3Lender.sol";
 import {IStrategyInterface} from "./interfaces/IStrategyInterface.sol";
 
 contract AaveV3LenderFactory {
+    /// @notice Revert message for when a strategy has already been deployed.
+    error AlreadyDeployed(address _strategy);
+
     event NewAaveV3Lender(address indexed strategy, address indexed asset);
 
     address public management;
     address public performanceFeeRecipient;
     address public keeper;
+
+    /// @notice Track the deployments. asset => pool => strategy
+    mapping(address => address) public deployments;
 
     constructor(
         address _management,
@@ -32,6 +38,8 @@ contract AaveV3LenderFactory {
         address _asset,
         string memory _name
     ) external returns (address) {
+        if (deployments[_asset] != address(0))
+            revert AlreadyDeployed(deployments[_asset]);
         // We need to use the custom interface with the
         // tokenized strategies available setters.
         IStrategyInterface newStrategy = IStrategyInterface(
@@ -45,6 +53,8 @@ contract AaveV3LenderFactory {
         newStrategy.setPendingManagement(management);
 
         emit NewAaveV3Lender(address(newStrategy), _asset);
+
+        deployments[_asset] = address(newStrategy);
         return address(newStrategy);
     }
 
@@ -57,5 +67,12 @@ contract AaveV3LenderFactory {
         management = _management;
         performanceFeeRecipient = _performanceFeeRecipient;
         keeper = _keeper;
+    }
+
+    function isDeployedStrategy(
+        address _strategy
+    ) external view returns (bool) {
+        address _asset = IStrategyInterface(_strategy).asset();
+        return deployments[_asset] == _strategy;
     }
 }

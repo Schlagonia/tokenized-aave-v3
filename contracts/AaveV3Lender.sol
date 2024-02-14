@@ -181,11 +181,8 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
             // deposit any loose funds
             uint256 looseAsset = asset.balanceOf(address(this));
             if (looseAsset > 0) {
-                lendingPool.supply(
-                    address(asset),
-                    Math.min(looseAsset, availableDepositLimit(address(this))),
-                    address(this),
-                    0
+                _deployFunds(
+                    Math.min(looseAsset, availableDepositLimit(address(this)))
                 );
             }
         }
