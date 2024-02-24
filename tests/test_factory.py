@@ -1,5 +1,5 @@
 import ape
-from ape import Contract, reverts, project
+from ape import Contract, reverts, project, accounts
 from utils.checks import check_strategy_totals, check_strategy_mins
 from utils.utils import days_to_secs
 from utils.constants import MAX_BPS
@@ -148,7 +148,7 @@ def test__factory_deployed__profitable_report(
     assert asset.balanceOf(user) > user_balance_before
 
 
-def test__factory_deployed__reward_selling(
+def test__factory_deployed__reward_selling_auction(
     chain,
     asset,
     tokens,
@@ -163,11 +163,13 @@ def test__factory_deployed__reward_selling(
     aave,
     RELATIVE_APPROX,
     keeper,
+    buyer,
 ):
     if asset == weth:
         asset = Contract(tokens["usdc"])
         amount = int(100_000e6)
         aave_fee = 3000
+
     else:
         asset = Contract(tokens["weth"])
         amount = weth_amount
@@ -186,8 +188,23 @@ def test__factory_deployed__reward_selling(
 
     asset.transfer(user, amount, sender=whale)
 
-    # set uni fees for swap
-    strategy.setUniFees(aave, asset, aave_fee, sender=management)
+    assert strategy.useAuction()
+
+    # Deploy and setup auction
+    auction_factory = Contract(strategy.auctionFactory())
+
+    tx = auction_factory.createNewAuction(
+        asset, strategy, management, sender=management
+    )
+
+    auction = project.IAuction.at(tx.return_value)
+
+    strategy.setAuction(auction, sender=management)
+
+    auction.setHookFlags(True, True, False, False, sender=management)
+
+    tx = auction.enable(aave, strategy, sender=management)
+    id = tx.return_value
 
     # Deposit to the strategy
     user_balance_before = asset.balanceOf(user)
@@ -211,7 +228,27 @@ def test__factory_deployed__reward_selling(
     aave.transfer(strategy, aave_amount, sender=whale)
     assert aave.balanceOf(strategy) == aave_amount
 
-    strategy.sellRewardManually(aave.address, aave_amount, 0, sender=management)
+    assert auction.kickable(id) == aave_amount
+
+    tx = auction.kick(id, sender=management)
+    assert tx.return_value == aave_amount
+    assert aave.balanceOf(auction) == aave_amount
+
+    chain.mine(auction_factory.DEFAULT_AUCTION_LENGTH() // 2)
+
+    needed = auction.getAmountNeeded(id, aave_amount)
+
+    assert needed > 0
+
+    asset.transfer(buyer, needed, sender=whale)
+
+    asset.approve(auction, needed, sender=buyer)
+
+    auction.take(id, sender=buyer)
+
+    assert aave.balanceOf(auction) == 0
+    assert aave.balanceOf(strategy) == 0
+    assert asset.balanceOf(strategy) == needed
 
     before_pps = strategy.pricePerShare()
 
@@ -228,6 +265,7 @@ def test__factory_deployed__reward_selling(
     )
 
     assert aave.balanceOf(strategy.address) == 0
+    assert asset.balanceOf(strategy.address) == 0
 
     # needed for profits to unlock
     chain.pending_timestamp = (

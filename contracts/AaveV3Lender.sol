@@ -11,10 +11,11 @@ import {IStakedAave} from "./interfaces/Aave/V3/IStakedAave.sol";
 import {IPool} from "./interfaces/Aave/V3/IPool.sol";
 import {IRewardsController} from "./interfaces/Aave/V3/IRewardsController.sol";
 
-// Uniswap V3 Swapper
+// Swappers
 import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
+import {AuctionSwapper, Auction} from "@periphery/swappers/AuctionSwapper.sol";
 
-contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
+contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     using SafeERC20 for ERC20;
 
     // The pool to deposit and withdraw through.
@@ -39,6 +40,9 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
 
     // Bool to decide to try and claim rewards. Defaults to True.
     bool public claimRewards = true;
+
+    // If rewards should be sold through Auctions.
+    bool public useAuction = true;
 
     // Mapping to be set by management for any reward tokens.
     // This can be used to set different mins for different tokens
@@ -179,23 +183,27 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
 
         if (!TokenizedStrategy.isShutdown()) {
             // deposit any loose funds
-            uint256 looseAsset = asset.balanceOf(address(this));
-            if (looseAsset > 0) {
-                _deployFunds(
-                    Math.min(looseAsset, availableDepositLimit(address(this)))
-                );
+            uint256 toDeploy = Math.min(
+                balanceOfAsset(),
+                availableDepositLimit(address(this))
+            );
+            if (toDeploy > 0) {
+                _deployFunds(toDeploy);
             }
         }
 
-        _totalAssets =
-            aToken.balanceOf(address(this)) +
-            asset.balanceOf(address(this));
+        _totalAssets = aToken.balanceOf(address(this)) + balanceOfAsset();
+    }
+
+    function balanceOfAsset() public view returns (uint256) {
+        return asset.balanceOf(address(this));
     }
 
     /**
      * @notice Used to claim any pending rewards and sell them to asset.
      */
     function _claimAndSellRewards() internal {
+        // Claim any pending stkAave.
         _redeemAave();
 
         //claim all rewards
@@ -204,7 +212,13 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
         (address[] memory rewardsList, ) = rewardsController
             .claimAllRewardsToSelf(assets);
 
-        //swap as much as possible back to want
+        // Start cooldown on any new stkAave.
+        _harvestStkAave();
+
+        // If using the Auction contract we are done.
+        if (useAuction) return;
+
+        // Else swap as much as possible back to asset through uni.
         address token;
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
@@ -212,13 +226,14 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
             if (token == address(asset)) {
                 continue;
             } else if (token == address(stkAave)) {
-                _harvestStkAave();
-            } else {
-                uint256 balance = ERC20(token).balanceOf(address(this));
+                // We swap Aave => asset
+                token = AAVE;
+            }
 
-                if (balance > minAmountToSellMapping[token]) {
-                    _swapFrom(token, address(asset), balance, 0);
-                }
+            uint256 balance = ERC20(token).balanceOf(address(this));
+
+            if (balance > minAmountToSellMapping[token]) {
+                _swapFrom(token, address(asset), balance, 0);
             }
         }
     }
@@ -235,21 +250,9 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
         if (stkAaveBalance > 0) {
             stkAave.redeem(address(this), stkAaveBalance);
         }
-
-        // sell AAVE for want
-        _swapFrom(
-            AAVE,
-            address(asset),
-            ERC20(AAVE).balanceOf(address(this)),
-            0
-        );
     }
 
     function checkCooldown() public view returns (bool) {
-        if (block.chainid != 1) {
-            return false;
-        }
-
         uint256 cooldownStartTimestamp = IStakedAave(stkAave).stakersCooldowns(
             address(this)
         );
@@ -308,7 +311,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
             .configuration
             .data;
 
-        // Cannot deposit when paused of frozen.
+        // Cannot deposit when paused or frozen.
         if (_isPaused(_data) || _isFrozen(_data)) return 0;
 
         uint256 supplyCap = _getSupplyCap(_data);
@@ -397,30 +400,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
             )
         ) liquidity = 0;
 
-        return TokenizedStrategy.totalIdle() + liquidity;
-    }
-
-    /**
-     * @notice Allows `management` to manually swap a token the strategy holds.
-     * @dev This can be used if the rewards controller has since removed a reward
-     * token so the normal harvest flow doesn't work, for retroactive airdrops.
-     * or just to slowly sell tokens at specific times rather than during harvests.
-     *
-     * @param _token The address of the token to sell.
-     * @param _amount The amount of `_token` to sell.
-     * @param _minAmountOut The minimum of `asset` to get out.
-     */
-    function sellRewardManually(
-        address _token,
-        uint256 _amount,
-        uint256 _minAmountOut
-    ) external onlyManagement {
-        _swapFrom(
-            _token,
-            address(asset),
-            Math.min(_amount, ERC20(_token).balanceOf(address(this))),
-            _minAmountOut
-        );
+        return balanceOfAsset() + liquidity;
     }
 
     /**
@@ -446,6 +426,30 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper {
      */
     function setClaimRewards(bool _bool) external onlyManagement {
         claimRewards = _bool;
+    }
+
+    ///////////// DUTCH AUCTION FUNCTIONS \\\\\\\\\\\\\\\\\\
+
+    function setAuction(address _auction) external onlyEmergencyAuthorized {
+        if (_auction != address(0)) {
+            require(Auction(_auction).want() == address(asset), "wrong want");
+        }
+        auction = _auction;
+    }
+
+    function _auctionKicked(
+        address _token
+    ) internal virtual override returns (uint256 _kicked) {
+        require(_token != address(asset), "asset");
+        _kicked = super._auctionKicked(_token);
+        require(_kicked >= minAmountToSellMapping[_token], "too little");
+    }
+
+    /**
+     * @notice Set if tokens should be sold through the dutch auction contract.
+     */
+    function setUseAuction(bool _useAuction) external onlyManagement {
+        useAuction = _useAuction;
     }
 
     /**

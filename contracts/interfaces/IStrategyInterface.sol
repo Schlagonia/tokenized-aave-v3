@@ -2,22 +2,25 @@
 pragma solidity 0.8.18;
 
 import {IStrategy} from "@tokenized-strategy/interfaces/IStrategy.sol";
+import {IAuctionSwapper} from "@periphery/swappers/interfaces/IAuctionSwapper.sol";
 import {IUniswapV3Swapper} from "@periphery/swappers/interfaces/IUniswapV3Swapper.sol";
 
-interface IStrategyInterface is IStrategy, IUniswapV3Swapper {
+interface IStrategyInterface is IStrategy, IUniswapV3Swapper, IAuctionSwapper {
     function aToken() external view returns (address);
 
     function manualRedeemAave() external;
 
     function claimRewards() external view returns (bool);
 
+    function useAuction() external view returns (bool);
+
+    function rewardsController() external view returns (address);
+
     function minAmountToSellMapping(
         address _token
     ) external view returns (uint256);
 
     function setUniFees(address _token0, address _token1, uint24 _fee) external;
-
-    function sellRewardManually(address _token, uint256 _minAmountOut) external;
 
     function setMinAmountToSellMapping(
         address _token,
@@ -26,9 +29,7 @@ interface IStrategyInterface is IStrategy, IUniswapV3Swapper {
 
     function setClaimRewards(bool _bool) external;
 
-    function sellRewardManually(
-        address _token,
-        uint256 _amount,
-        uint256 _minOut
-    ) external;
+    function setAuction(address _auction) external;
+
+    function setUseAuction(bool _useAuction) external;
 }
