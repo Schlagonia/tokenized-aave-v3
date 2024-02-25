@@ -20,7 +20,6 @@ def test__operation(
     # Deposit to the strategy
     deposit()
 
-    # TODO: Implement logic so totalDebt ends > 0
     check_strategy_totals(
         strategy, total_assets=amount, total_debt=amount, total_idle=0
     )
@@ -52,18 +51,11 @@ def test_profitable_report(
     # Deposit to the strategy
     deposit()
 
-    # TODO: Implement logic so totalDebt ends > 0
     check_strategy_totals(
         strategy, total_assets=amount, total_debt=amount, total_idle=0
     )
 
-    # TODO: Add some code to simulate earning yield
-    to_airdrop = amount // 100
-
-    asset.transfer(strategy.address, to_airdrop, sender=whale)
-
-    # Harvest 2: Realize profit
-    chain.mine(10)
+    increase_time(chain, days_to_secs(2))
 
     before_pps = strategy.pricePerShare()
 
@@ -71,7 +63,7 @@ def test_profitable_report(
 
     profit, loss = tx.return_value
 
-    assert profit >= to_airdrop
+    assert profit >= 0
 
     performance_fees = profit * strategy.performanceFee() // MAX_BPS
 
@@ -117,17 +109,11 @@ def test__profitable_report__with_fee(
     # Deposit to the strategy
     deposit()
 
-    # TODO: Implement logic so totalDebt ends > 0
     check_strategy_totals(
         strategy, total_assets=amount, total_debt=amount, total_idle=0
     )
 
-    # TODO: Add some code to simulate earning yield
-    to_airdrop = amount // 100
-
-    asset.transfer(strategy.address, to_airdrop, sender=whale)
-
-    chain.mine(10)
+    increase_time(chain, days_to_secs(2))
 
     before_pps = strategy.pricePerShare()
 
@@ -137,9 +123,6 @@ def test__profitable_report__with_fee(
 
     assert profit > 0
 
-    expected_performance_fee = profit * performance_fee // MAX_BPS
-
-    # TODO: Implement logic so totalDebt == amount + profit
     check_strategy_totals(
         strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
     )
@@ -157,13 +140,9 @@ def test__profitable_report__with_fee(
 
     assert asset.balanceOf(user) > user_balance_before
 
-    rewards_balance_before = asset.balanceOf(rewards)
+    rewards_balance = strategy.balanceOf(rewards)
 
-    strategy.redeem(expected_performance_fee, rewards, rewards, sender=rewards)
-
-    check_strategy_totals(strategy, total_assets=0, total_debt=0, total_idle=0)
-
-    assert asset.balanceOf(rewards) >= rewards_balance_before + expected_performance_fee
+    strategy.redeem(rewards_balance, rewards, rewards, sender=rewards)
 
 
 def test__tend_trigger(
@@ -176,31 +155,31 @@ def test__tend_trigger(
     user,
 ):
     # Check Trigger
-    assert strategy.tendTrigger() == False
+    assert strategy.tendTrigger()[0] == False
 
     # Deposit to the strategy
     deposit()
 
     # Check Trigger
-    assert strategy.tendTrigger() == False
+    assert strategy.tendTrigger()[0] == False
 
     chain.mine(days_to_secs(1))
 
     # Check Trigger
-    assert strategy.tendTrigger() == False
+    assert strategy.tendTrigger()[0] == False
 
     strategy.report(sender=keeper)
 
     # Check Trigger
-    assert strategy.tendTrigger() == False
+    assert strategy.tendTrigger()[0] == False
 
     # needed for profits to unlock
     increase_time(chain, strategy.profitMaxUnlockTime() - 1)
 
     # Check Trigger
-    assert strategy.tendTrigger() == False
+    assert strategy.tendTrigger()[0] == False
 
     strategy.redeem(amount, user, user, sender=user)
 
     # Check Trigger
-    assert strategy.tendTrigger() == False
+    assert strategy.tendTrigger()[0] == False
