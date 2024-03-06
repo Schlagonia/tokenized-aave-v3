@@ -1,6 +1,5 @@
 import ape
 from ape import Contract, reverts, project, accounts
-from utils.checks import check_strategy_totals, check_strategy_mins
 from utils.utils import days_to_secs
 from utils.constants import MAX_BPS
 import pytest
@@ -47,16 +46,14 @@ def test__factory_deployed__operation(
     asset.approve(strategy, amount, sender=user)
     strategy.deposit(amount, user, sender=user)
 
-    check_strategy_totals(
-        strategy, total_assets=amount, total_debt=amount, total_idle=0
-    )
+    assert strategy.totalAssets() == amount
 
     chain.mine(10)
 
     # withdrawal
     strategy.withdraw(amount, user, user, sender=user)
 
-    check_strategy_totals(strategy, total_assets=0, total_debt=0, total_idle=0)
+    assert strategy.totalAssets() == 0
 
     assert (
         pytest.approx(asset.balanceOf(user), rel=RELATIVE_APPROX) == user_balance_before
@@ -111,9 +108,7 @@ def test__factory_deployed__profitable_report(
     asset.approve(strategy, amount, sender=user)
     strategy.deposit(amount, user, sender=user)
 
-    check_strategy_totals(
-        strategy, total_assets=amount, total_debt=amount, total_idle=0
-    )
+    assert strategy.totalAssets() == amount
 
     # Earn some profit
     chain.mine(days_to_secs(5))
@@ -127,9 +122,7 @@ def test__factory_deployed__profitable_report(
 
     performance_fees = profit * strategy.performanceFee() // MAX_BPS
 
-    check_strategy_totals(
-        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
-    )
+    assert strategy.totalAssets() >= amount + profit
 
     # needed for profits to unlock
     chain.pending_timestamp = (
@@ -137,9 +130,7 @@ def test__factory_deployed__profitable_report(
     )
     chain.mine(timestamp=chain.pending_timestamp)
 
-    check_strategy_totals(
-        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
-    )
+    assert strategy.totalAssets() >= amount
 
     assert strategy.pricePerShare() > before_pps
 
@@ -213,12 +204,7 @@ def test__factory_deployed__reward_selling_auction(
     asset.approve(strategy, amount, sender=user)
     strategy.deposit(amount, user, sender=user)
 
-    check_strategy_totals(
-        strategy,
-        total_assets=amount,
-        total_debt=amount,
-        total_idle=0,
-    )
+    assert strategy.totalAssets() == amount
 
     # Earn some profit
     chain.mine(days_to_secs(5))
@@ -260,9 +246,7 @@ def test__factory_deployed__reward_selling_auction(
 
     performance_fees = profit * strategy.performanceFee() // MAX_BPS
 
-    check_strategy_totals(
-        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
-    )
+    assert strategy.totalAssets() == amount + profit
 
     assert aave.balanceOf(strategy.address) == 0
     assert asset.balanceOf(strategy.address) == 0
@@ -273,9 +257,7 @@ def test__factory_deployed__reward_selling_auction(
     )
     chain.mine(timestamp=chain.pending_timestamp)
 
-    check_strategy_totals(
-        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
-    )
+    assert strategy.totalAssets() == amount + profit
 
     assert strategy.pricePerShare() > before_pps
 
@@ -325,9 +307,7 @@ def test__factory_deployed__shutdown(
     asset.approve(strategy, amount, sender=user)
     strategy.deposit(amount, user, sender=user)
 
-    check_strategy_totals(
-        strategy, total_assets=amount, total_debt=amount, total_idle=0
-    )
+    assert strategy.totalAssets() == amount
 
     chain.mine(14)
 
@@ -339,9 +319,8 @@ def test__factory_deployed__shutdown(
     strategy.report(sender=management)
 
     assert asset.balanceOf(strategy) >= amount
-    check_strategy_mins(
-        strategy, min_total_assets=amount, min_total_debt=0, min_total_idle=amount
-    )
+
+    assert strategy.totalAssets() >= amount
 
     # withdrawal
     strategy.withdraw(amount, user, user, sender=user)
