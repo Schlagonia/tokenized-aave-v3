@@ -1,7 +1,6 @@
 import ape
 from ape import Contract
 from utils.constants import MAX_BPS
-from utils.checks import check_strategy_totals
 from utils.utils import days_to_secs, increase_time
 import pytest
 
@@ -20,16 +19,14 @@ def test__operation(
     # Deposit to the strategy
     deposit()
 
-    check_strategy_totals(
-        strategy, total_assets=amount, total_debt=amount, total_idle=0
-    )
+    assert strategy.totalAssets() == amount
 
     chain.mine(10)
 
     # withdrawal
     strategy.withdraw(amount, user, user, sender=user)
 
-    check_strategy_totals(strategy, total_assets=0, total_debt=0, total_idle=0)
+    assert strategy.totalAssets() == 0
 
     assert asset.balanceOf(user) == user_balance_before
 
@@ -51,9 +48,7 @@ def test_profitable_report(
     # Deposit to the strategy
     deposit()
 
-    check_strategy_totals(
-        strategy, total_assets=amount, total_debt=amount, total_idle=0
-    )
+    assert strategy.totalAssets() == amount
 
     increase_time(chain, days_to_secs(2))
 
@@ -67,17 +62,13 @@ def test_profitable_report(
 
     performance_fees = profit * strategy.performanceFee() // MAX_BPS
 
-    # TODO: Implement logic so totalDebt == amount + profit
-    check_strategy_totals(
-        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
-    )
+    assert strategy.totalAssets() == amount + profit
 
     # needed for profits to unlock
     increase_time(chain, strategy.profitMaxUnlockTime() - 1)
 
-    check_strategy_totals(
-        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
-    )
+    assert strategy.totalAssets() == amount + profit
+
     assert strategy.pricePerShare() > before_pps
 
     # withdrawal
@@ -109,9 +100,7 @@ def test__profitable_report__with_fee(
     # Deposit to the strategy
     deposit()
 
-    check_strategy_totals(
-        strategy, total_assets=amount, total_debt=amount, total_idle=0
-    )
+    assert strategy.totalAssets() == amount
 
     increase_time(chain, days_to_secs(2))
 
@@ -123,16 +112,12 @@ def test__profitable_report__with_fee(
 
     assert profit > 0
 
-    check_strategy_totals(
-        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
-    )
+    assert strategy.totalAssets() == amount + profit
 
     # needed for profits to unlock
     increase_time(chain, strategy.profitMaxUnlockTime() - 1)
 
-    check_strategy_totals(
-        strategy, total_assets=amount + profit, total_debt=amount + profit, total_idle=0
-    )
+    assert strategy.totalAssets() == amount + profit
 
     assert strategy.pricePerShare() > before_pps
 

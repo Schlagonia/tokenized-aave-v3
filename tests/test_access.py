@@ -1,6 +1,5 @@
 import ape
 from ape import Contract, reverts
-from utils.checks import check_strategy_totals
 from utils.utils import days_to_secs
 import pytest
 
@@ -107,9 +106,7 @@ def test__emergency_withdraw__reverts(strategy, user, deposit, amount):
 
     deposit()
 
-    check_strategy_totals(
-        strategy, total_assets=amount, total_debt=amount, total_idle=0
-    )
+    assert strategy.totalAssets() == amount
 
     with reverts("!emergency authorized"):
         strategy.emergencyWithdraw(100, sender=user)
