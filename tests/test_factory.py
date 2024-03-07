@@ -249,7 +249,8 @@ def test__factory_deployed__reward_selling_auction(
     assert strategy.totalAssets() == amount + profit
 
     assert aave.balanceOf(strategy.address) == 0
-    assert asset.balanceOf(strategy.address) == 0
+    # Sold tokens are left idle
+    assert asset.balanceOf(strategy.address) > 0
 
     # needed for profits to unlock
     chain.pending_timestamp = (

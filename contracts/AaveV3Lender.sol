@@ -181,17 +181,6 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
             _claimAndSellRewards();
         }
 
-        if (!TokenizedStrategy.isShutdown()) {
-            // deposit any loose funds
-            uint256 toDeploy = Math.min(
-                balanceOfAsset(),
-                availableDepositLimit(address(this))
-            );
-            if (toDeploy > 0) {
-                _deployFunds(toDeploy);
-            }
-        }
-
         _totalAssets = aToken.balanceOf(address(this)) + balanceOfAsset();
     }
 
@@ -319,12 +308,16 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         // If we have no supply cap.
         if (supplyCap == 0) return type(uint256).max;
 
-        uint256 supply = aToken.totalSupply();
+        // Supply plus any already idle funds.
+        uint256 supply = aToken.totalSupply() + asset.balanceOf(address(this));
+
         // If we already hit the cap.
         if (supplyCap <= supply) return 0;
 
         // Return the remaining room.
-        return supplyCap - supply;
+        unchecked {
+            return supplyCap - supply;
+        }
     }
 
     /**
