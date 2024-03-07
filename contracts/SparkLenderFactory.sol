@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.18;
 
-import {AaveV3Lender} from "./AaveV3Lender.sol";
+import {SparkLender} from "./SparkLender.sol";
 import {IStrategyInterface} from "./interfaces/IStrategyInterface.sol";
 
-contract AaveV3LenderFactory {
+contract SparkLenderFactory {
     /// @notice Revert message for when a strategy has already been deployed.
     error AlreadyDeployed(address _strategy);
 
-    event NewAaveV3Lender(address indexed strategy, address indexed asset);
+    event NewSparkLender(address indexed strategy, address indexed asset);
 
     address public management;
     address public performanceFeeRecipient;
@@ -28,13 +28,13 @@ contract AaveV3LenderFactory {
     }
 
     /**
-     * @notice Deploy a new Aave V3 Lender.
+     * @notice Deploy a new Spark Lender.
      * @dev This will set the msg.sender to all of the permissioned roles.
      * @param _asset The underlying asset for the lender to use.
      * @param _name The name for the lender to use.
      * @return . The address of the new lender.
      */
-    function newAaveV3Lender(
+    function newSparkLender(
         address _asset,
         string memory _name
     ) external returns (address) {
@@ -43,7 +43,7 @@ contract AaveV3LenderFactory {
         // We need to use the custom interface with the
         // tokenized strategies available setters.
         IStrategyInterface newStrategy = IStrategyInterface(
-            address(new AaveV3Lender(_asset, _name))
+            address(new SparkLender(_asset, _name))
         );
 
         newStrategy.setPerformanceFeeRecipient(performanceFeeRecipient);
@@ -52,7 +52,7 @@ contract AaveV3LenderFactory {
 
         newStrategy.setPendingManagement(management);
 
-        emit NewAaveV3Lender(address(newStrategy), _asset);
+        emit NewSparkLender(address(newStrategy), _asset);
 
         deployments[_asset] = address(newStrategy);
         return address(newStrategy);

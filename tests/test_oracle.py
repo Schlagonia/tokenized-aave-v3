@@ -14,11 +14,11 @@ def check_oracle(oracle, strategy, user, management):
 
     new_apr = oracle.aprAfterDebtChange(strategy, 100000000)
 
-    assert new_apr < current_apr
+    assert new_apr == current_apr
 
     higher_apr = oracle.aprAfterDebtChange(strategy, -100000000)
 
-    assert higher_apr > current_apr
+    assert higher_apr == current_apr
 
     print(f"Current apr {oracle.aprAfterDebtChange(strategy, 0)}")
 

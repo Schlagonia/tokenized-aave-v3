@@ -15,12 +15,12 @@ import {IRewardsController} from "./interfaces/Aave/V3/IRewardsController.sol";
 import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
 import {AuctionSwapper, Auction} from "@periphery/swappers/AuctionSwapper.sol";
 
-contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
+contract SparkLender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     using SafeERC20 for ERC20;
 
     // The pool to deposit and withdraw through.
     IPool public constant lendingPool =
-        IPool(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
+        IPool(0xC13e21B648A5Ee794902342038FF3aDAB66BE987);
 
     IStakedAave internal constant stkAave =
         IStakedAave(0x4da27a545c0c5B758a6BA100e3a049001de870f5);

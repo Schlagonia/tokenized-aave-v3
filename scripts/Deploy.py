@@ -3,19 +3,18 @@ from ape import accounts, project, networks
 
 
 def deploy():
-    signer = accounts.load("")
+    signer = accounts.load("v3_deployer")
 
     signer.deploy(
-        project.AaveV3LenderFactory,
+        project.SparkLenderFactory,
         "",
         "",
-        "",
-        publish=True,
+        # publish=True,
     )
 
 
 def publish():
-    factory = project.AaveV3Lender.at("")
+    factory = project.SparkLenderFactory.at("")
 
     networks.provider.network.explorer.publish_contract(factory)
 

@@ -91,9 +91,9 @@ def weth_amount(user, weth):
 @pytest.fixture(scope="session")
 def create_strategy(management, factory):
     def create_strategy(asset, performance_fee=1_000):
-        tx = factory.newAaveV3Lender(asset, "yStrategy-Example", sender=management)
+        tx = factory.newSparkLender(asset, "yStrategy-Example", sender=management)
 
-        event = list(tx.decode_logs(factory.NewAaveV3Lender))
+        event = list(tx.decode_logs(factory.NewSparkLender))
         strategy = project.IStrategyInterface.at(event[0].strategy)
 
         strategy.acceptManagement(sender=management)
@@ -109,7 +109,7 @@ def create_strategy(management, factory):
 def create_factory(management, keeper, rewards):
     def create_factory():
         factory = management.deploy(
-            project.AaveV3LenderFactory, management, rewards, keeper
+            project.SparkLenderFactory, management, rewards, keeper
         )
 
         return factory
