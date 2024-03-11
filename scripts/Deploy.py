@@ -4,13 +4,12 @@ from ape import accounts, project, networks
 
 def deploy():
     signer = accounts.load("")
-
     signer.deploy(
         project.AaveV3LenderFactory,
         "",
         "",
         "",
-        publish=True,
+        # publish=True,
     )
 
 

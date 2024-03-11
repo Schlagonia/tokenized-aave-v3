@@ -8,7 +8,6 @@ plugins:
   - name: alchemy
   - name: polygon
   
-default_ecosystem: ethereum
 
 dependencies:
   - name: openzeppelin
@@ -33,13 +32,22 @@ solidity:
     - "@tokenized-strategy=tokenized-strategy/v3.0.2"
     - "@periphery=periphery/master"
 
-ethereum:
-  default_network: mainnet-fork
-  mainnet_fork:
-    default_provider: hardhat
+default_ecosystem: gnosis
+
+networks:
+  custom:
+    - name: local
+      ecosystem: gnosis
+      base_ecosystem_plugin: ethereum  # Closest base class.
+      chain_id: 100 # This must be correct or txns will fail.
+      default_provider: hardhat
+
+gnosis:
+  mainnet:
+    default_transaction_type: 0  # Use static-fee transactions for Shibarium.
 
 hardhat:
   fork:
-    ethereum:
+    gnosis:
       mainnet:
         upstream_provider: infura

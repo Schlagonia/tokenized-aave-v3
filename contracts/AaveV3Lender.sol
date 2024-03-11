@@ -20,7 +20,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
 
     // The pool to deposit and withdraw through.
     IPool public constant lendingPool =
-        IPool(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
+        IPool(0xb50201558B00496A145fE76f7424749556E326D8);
 
     IStakedAave internal constant stkAave =
         IStakedAave(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
@@ -39,7 +39,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     IAToken public immutable aToken;
 
     // Bool to decide to try and claim rewards. Defaults to True.
-    bool public claimRewards = true;
+    bool public claimRewards;
 
     // If rewards should be sold through Auctions.
     bool public useAuction = true;
@@ -242,6 +242,8 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     }
 
     function checkCooldown() public view returns (bool) {
+        if (block.chainid != 1) return false;
+
         uint256 cooldownStartTimestamp = IStakedAave(stkAave).stakersCooldowns(
             address(this)
         );
@@ -260,6 +262,8 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     }
 
     function _harvestStkAave() internal {
+        if (block.chainid != 1) return;
+
         // request start of cooldown period
         if (ERC20(address(stkAave)).balanceOf(address(this)) > 0) {
             stkAave.cooldown();
