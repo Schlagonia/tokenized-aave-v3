@@ -3,19 +3,16 @@ pragma solidity 0.8.18;
 
 import {IStrategyInterface} from "../interfaces/IStrategyInterface.sol";
 
-import {AprOracleBase} from "@periphery/AprOracle/AprOracleBase.sol";
 import {IPool, DataTypesV3} from "../interfaces/Aave/V3/IPool.sol";
 import {IProtocolDataProvider} from "../interfaces/Aave/V3/IProtocolDataProvider.sol";
 import {IReserveInterestRateStrategy} from "../interfaces/Aave/V3/IReserveInterestRateStrategy.sol";
 
-contract StrategyAprOracle is AprOracleBase {
+contract StrategyAprOracle {
     IPool public constant lendingPool =
         IPool(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
 
     IProtocolDataProvider public constant protocolDataProvider =
         IProtocolDataProvider(0x7B4EB56E7CD4b454BA8ff71E4518426369a138a3);
-
-    constructor() AprOracleBase("Aave V3 Apr oracle", msg.sender) {}
 
     /**
      * @notice Will return the expected Apr of a strategy post a debt change.
@@ -39,7 +36,7 @@ contract StrategyAprOracle is AprOracleBase {
     function aprAfterDebtChange(
         address _strategy,
         int256 _delta
-    ) external view override returns (uint256) {
+    ) external view returns (uint256) {
         address asset = IStrategyInterface(_strategy).asset();
         address aToken = IStrategyInterface(_strategy).aToken();
         //need to calculate new supplyRate after Deposit (when deposit has not been done yet)
