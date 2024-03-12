@@ -3,7 +3,7 @@ from ape import accounts, project, networks
 
 
 def deploy():
-    signer = accounts.load("v3_deployer")
+    signer = accounts.load("")
 
     signer.deploy(
         project.SparkLenderFactory,
