@@ -40,9 +40,8 @@ contract StrategyAprOracle {
         address asset = IStrategyInterface(_strategy).asset();
         address aToken = IStrategyInterface(_strategy).aToken();
         //need to calculate new supplyRate after Deposit (when deposit has not been done yet)
-        DataTypesV3.ReserveData memory reserveData = lendingPool.getReserveData(
-            asset
-        );
+        DataTypesV3.ReserveData memory reserveData = lendingPool
+            .getReserveDataExtended(asset);
 
         (
             uint256 unbacked,
@@ -72,7 +71,8 @@ contract StrategyAprOracle {
                 averageStableBorrowRate,
                 reserveFactor,
                 asset,
-                aToken
+                true,
+                uint256(reserveData.virtualUnderlyingBalance)
             );
 
         (uint256 newLiquidityRate, , ) = IReserveInterestRateStrategy(
