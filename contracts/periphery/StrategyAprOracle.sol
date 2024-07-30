@@ -38,7 +38,6 @@ contract StrategyAprOracle {
         int256 _delta
     ) external view returns (uint256) {
         address asset = IStrategyInterface(_strategy).asset();
-        address aToken = IStrategyInterface(_strategy).aToken();
         //need to calculate new supplyRate after Deposit (when deposit has not been done yet)
         DataTypesV3.ReserveData memory reserveData = lendingPool
             .getReserveDataExtended(asset);
