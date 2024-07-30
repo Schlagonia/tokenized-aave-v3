@@ -608,6 +608,10 @@ interface IPool {
         address asset
     ) external view returns (uint256);
 
+    function getReserveDataExtended(
+        address asset
+    ) external view returns (DataTypesV3.ReserveData memory);
+
     /**
      * @notice Returns the state and configuration of the reserve
      * @param asset The address of the underlying asset of the reserve
@@ -615,7 +619,7 @@ interface IPool {
      **/
     function getReserveData(
         address asset
-    ) external view returns (DataTypesV3.ReserveData memory);
+    ) external view returns (DataTypesV3.ReserveDataLegacy memory);
 
     /**
      * @notice Validates and finalizes an aToken transfer

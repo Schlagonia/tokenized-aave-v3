@@ -12,11 +12,11 @@ def check_oracle(oracle, strategy, user, management):
     # If APR is expected to be under 100%
     assert current_apr < int(1e18)
 
-    new_apr = oracle.aprAfterDebtChange(strategy, 100000000)
+    new_apr = oracle.aprAfterDebtChange(strategy, 10000000000000000000)
 
     assert new_apr < current_apr
 
-    higher_apr = oracle.aprAfterDebtChange(strategy, -100000000)
+    higher_apr = oracle.aprAfterDebtChange(strategy, -10000000000000000)
 
     assert higher_apr > current_apr
 
