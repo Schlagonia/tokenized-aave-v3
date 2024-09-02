@@ -384,15 +384,19 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     function availableWithdrawLimit(
         address /*_owner*/
     ) public view override returns (uint256) {
-        uint256 liquidity = asset.balanceOf(address(aToken));
+        uint256 liquidity;
 
-        // Cannot withdraw from the pool when paused.
+        // IF pool is not paused
         if (
-            _isPaused(
+            !_isPaused(
                 lendingPool.getReserveData(address(asset)).configuration.data
             )
-        ) liquidity = 0;
-
+        ) {
+            // Get the tracked virtual balance
+            liquidity = lendingPool
+                .getReserveDataExtended(address(asset))
+                .virtualUnderlyingBalance;
+        }
         return balanceOfAsset() + liquidity;
     }
 
