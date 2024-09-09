@@ -51,7 +51,7 @@ contract AaveV3LenderFactory {
             revert AlreadyDeployed(deployments[_asset]);
 
         string memory _name = string(
-            abi.encodePacked("Aave V3 ", ERC20(_asset).symbol(), " Lender  ")
+            abi.encodePacked("Aave V3 ", ERC20(_asset).symbol(), " Lender")
         );
 
         // We need to use the custom interface with the
