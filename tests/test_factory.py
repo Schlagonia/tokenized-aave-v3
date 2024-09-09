@@ -27,7 +27,7 @@ def test__factory_deployed__operation(
         asset = Contract(tokens["weth"])
         amount = weth_amount
 
-    tx = factory.newAaveV3Lender(asset, "yTest Factory", sender=management)
+    tx = factory.newAaveV3Lender(asset, sender=management)
 
     event = list(tx.decode_logs(factory.NewAaveV3Lender))
 
@@ -85,7 +85,7 @@ def test__factory_deployed__profitable_report(
         amount = weth_amount
         aave_fee = 3000
 
-    tx = factory.newAaveV3Lender(asset, "yTest Factory", sender=management)
+    tx = factory.newAaveV3Lender(asset, sender=management)
 
     event = list(tx.decode_logs(factory.NewAaveV3Lender))
 
@@ -166,7 +166,7 @@ def test__factory_deployed__reward_selling_auction(
         amount = weth_amount
         aave_fee = 3000
 
-    tx = factory.newAaveV3Lender(asset, "yTest Factory", sender=management)
+    tx = factory.newAaveV3Lender(asset, sender=management)
 
     event = list(tx.decode_logs(factory.NewAaveV3Lender))
 
@@ -289,7 +289,7 @@ def test__factory_deployed__shutdown(
         asset = Contract(tokens["weth"])
         amount = weth_amount
 
-    tx = factory.newAaveV3Lender(asset, "yTest Factory", sender=management)
+    tx = factory.newAaveV3Lender(asset, sender=management)
 
     event = list(tx.decode_logs(factory.NewAaveV3Lender))
 
@@ -354,7 +354,7 @@ def test__factroy_deployed__access(
         asset = Contract(tokens["weth"])
         amount = weth_amount
 
-    tx = factory.newAaveV3Lender(asset, "yTest Factory", sender=management)
+    tx = factory.newAaveV3Lender(asset, sender=management)
 
     event = list(tx.decode_logs(factory.NewAaveV3Lender))
 

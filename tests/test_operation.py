@@ -173,13 +173,7 @@ def test__withdraw_limit_airdrop(
 
 
 def test__withdraw_limit_illiquid(
-    chain,
-    asset,
-    strategy,
-    user,
-    deposit,
-    amount,
-    whale,
+    chain, asset, strategy, user, deposit, amount, whale, lendingPool
 ):
     user_balance_before = asset.balanceOf(user)
 
@@ -197,8 +191,6 @@ def test__withdraw_limit_illiquid(
     balance = aToken.balanceOf(aToken_whale)
 
     assert balance > limit  # Cant make illiquid for test
-
-    lendingPool = Contract(strategy.lendingPool())
 
     to_leave = amount // 10
 

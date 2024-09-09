@@ -25,6 +25,16 @@ def aave():
     yield Contract("0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9")
 
 
+@pytest.fixture(scope="session")
+def lendingPool():
+    yield Contract("0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2")
+
+
+@pytest.fixture(scope="session")
+def router():
+    yield Contract("0xE592427A0AEce92De3Edee1F18E0157C05861564")
+
+
 ############ STANDARD FIXTURES ############
 
 
@@ -91,7 +101,7 @@ def weth_amount(user, weth):
 @pytest.fixture(scope="session")
 def create_strategy(management, factory):
     def create_strategy(asset, performance_fee=1_000):
-        tx = factory.newAaveV3Lender(asset, "yStrategy-Example", sender=management)
+        tx = factory.newAaveV3Lender(asset, sender=management)
 
         event = list(tx.decode_logs(factory.NewAaveV3Lender))
         strategy = project.IStrategyInterface.at(event[0].strategy)
@@ -106,10 +116,17 @@ def create_strategy(management, factory):
 
 
 @pytest.fixture(scope="session")
-def create_factory(management, keeper, rewards):
+def create_factory(management, keeper, rewards, daddy, lendingPool, router, weth):
     def create_factory():
         factory = management.deploy(
-            project.AaveV3LenderFactory, management, rewards, keeper
+            project.AaveV3LenderFactory,
+            management,
+            rewards,
+            keeper,
+            daddy,
+            lendingPool,
+            router,
+            weth,
         )
 
         return factory

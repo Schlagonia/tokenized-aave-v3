@@ -11,6 +11,7 @@ contract AaveV3LenderFactory {
     event NewAaveV3Lender(address indexed strategy, address indexed asset);
 
     address public immutable sms;
+
     address public immutable lendingPool;
     address public immutable router;
     address public immutable base;
@@ -42,9 +43,7 @@ contract AaveV3LenderFactory {
 
     /**
      * @notice Deploy a new Aave V3 Lender.
-     * @dev This will set the msg.sender to all of the permissioned roles.
      * @param _asset The underlying asset for the lender to use.
-     * @param _name The name for the lender to use.
      * @return . The address of the new lender.
      */
     function newAaveV3Lender(address _asset) external returns (address) {
@@ -52,15 +51,13 @@ contract AaveV3LenderFactory {
             revert AlreadyDeployed(deployments[_asset]);
 
         string memory _name = string(
-            "Aave V3 ",
-            ERC20(_asset).symbol(),
-            " Lender"
+            abi.encodePacked("Aave V3 ", ERC20(_asset).symbol(), " Lender  ")
         );
 
         // We need to use the custom interface with the
         // tokenized strategies available setters.
         IStrategyInterface newStrategy = IStrategyInterface(
-            address(new AaveV3Lender(_asset, _name))
+            address(new AaveV3Lender(_asset, _name, lendingPool, router, base))
         );
 
         newStrategy.setPerformanceFeeRecipient(performanceFeeRecipient);
