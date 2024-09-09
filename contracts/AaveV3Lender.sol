@@ -19,8 +19,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     using SafeERC20 for ERC20;
 
     // The pool to deposit and withdraw through.
-    IPool public constant lendingPool =
-        IPool(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
+    IPool public immutable lendingPool;
 
     IStakedAave internal constant stkAave =
         IStakedAave(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
@@ -52,8 +51,13 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
 
     constructor(
         address _asset,
-        string memory _name
+        string memory _name,
+        address _lendingPool,
+        address _router,
+        address _base
     ) BaseStrategy(_asset, _name) {
+        lendingPool = IPool(_lendingPool);
+
         // Set the aToken based on the asset we are using.
         aToken = IAToken(lendingPool.getReserveData(_asset).aTokenAddress);
 
@@ -72,8 +76,8 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         // Set uni swapper values
         // We will use the minAmountToSell mapping instead.
         minAmountToSell = 0;
-        base = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+        router = _router;
+        base = _base;
     }
 
     /**
@@ -242,6 +246,8 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     }
 
     function checkCooldown() public view returns (bool) {
+        if (block.chainid != 1) return false;
+
         uint256 cooldownStartTimestamp = IStakedAave(stkAave).stakersCooldowns(
             address(this)
         );
@@ -260,6 +266,8 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     }
 
     function _harvestStkAave() internal {
+        if (block.chainid != 1) return;
+
         // request start of cooldown period
         if (ERC20(address(stkAave)).balanceOf(address(this)) > 0) {
             stkAave.cooldown();

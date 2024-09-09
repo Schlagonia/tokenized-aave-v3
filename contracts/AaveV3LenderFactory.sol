@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.18;
 
-import {AaveV3Lender} from "./AaveV3Lender.sol";
+import {AaveV3Lender, ERC20} from "./AaveV3Lender.sol";
 import {IStrategyInterface} from "./interfaces/IStrategyInterface.sol";
 
 contract AaveV3LenderFactory {
@@ -9,6 +9,11 @@ contract AaveV3LenderFactory {
     error AlreadyDeployed(address _strategy);
 
     event NewAaveV3Lender(address indexed strategy, address indexed asset);
+
+    address public immutable sms;
+    address public immutable lendingPool;
+    address public immutable router;
+    address public immutable base;
 
     address public management;
     address public performanceFeeRecipient;
@@ -20,11 +25,19 @@ contract AaveV3LenderFactory {
     constructor(
         address _management,
         address _performanceFeeRecipient,
-        address _keeper
+        address _keeper,
+        address _sms,
+        address _lendingPool,
+        address _router,
+        address _base
     ) {
         management = _management;
         performanceFeeRecipient = _performanceFeeRecipient;
         keeper = _keeper;
+        sms = _sms;
+        lendingPool = _lendingPool;
+        router = _router;
+        base = _base;
     }
 
     /**
@@ -34,12 +47,16 @@ contract AaveV3LenderFactory {
      * @param _name The name for the lender to use.
      * @return . The address of the new lender.
      */
-    function newAaveV3Lender(
-        address _asset,
-        string memory _name
-    ) external returns (address) {
+    function newAaveV3Lender(address _asset) external returns (address) {
         if (deployments[_asset] != address(0))
             revert AlreadyDeployed(deployments[_asset]);
+
+        string memory _name = string(
+            "Aave V3 ",
+            ERC20(_asset).symbol(),
+            " Lender"
+        );
+
         // We need to use the custom interface with the
         // tokenized strategies available setters.
         IStrategyInterface newStrategy = IStrategyInterface(
@@ -51,6 +68,14 @@ contract AaveV3LenderFactory {
         newStrategy.setKeeper(keeper);
 
         newStrategy.setPendingManagement(management);
+
+        newStrategy.setEmergencyAdmin(sms);
+
+        newStrategy.setClaimRewards(false);
+
+        newStrategy.setPerformanceFee(500);
+
+        newStrategy.setProfitMaxUnlockTime(60 * 60 * 24 * 3);
 
         emit NewAaveV3Lender(address(newStrategy), _asset);
 
