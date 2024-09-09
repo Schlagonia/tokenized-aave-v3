@@ -27,12 +27,6 @@ dependencies:
     exclude: 
      - test/**/*
 
-solidity:
-  import_remapping:
-    - "@openzeppelin/contracts=openzeppelin/v4.9.5"
-    - "@tokenized-strategy=tokenized-strategy/v3.0.2"
-    - "@periphery=periphery/master"
-
 ethereum:
   default_network: mainnet-fork
   mainnet_fork:
