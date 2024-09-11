@@ -253,9 +253,9 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     function checkCooldown() public view returns (bool) {
         if (block.chainid != 1) return false;
 
-        uint256 cooldownStartTimestamp = IStakedAave(stkAave).stakersCooldowns(
-            address(this)
-        );
+        uint256 cooldownStartTimestamp = IStakedAave(stkAave)
+            .stakersCooldowns(address(this))
+            .timestamp;
 
         if (cooldownStartTimestamp == 0) return false;
 
