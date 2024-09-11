@@ -378,8 +378,10 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
 
     function setIsVirtualAccActive() public {
         virtualAccounting =
-            (lendingPool.getReserveData(address(asset)).configuration.data &
-                ~VIRTUAL_ACC_ACTIVE_MASK) !=
+            (lendingPool
+                .getReserveDataExtended(address(asset))
+                .configuration
+                .data & ~VIRTUAL_ACC_ACTIVE_MASK) !=
             0;
     }
 
@@ -388,12 +390,9 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      */
     function _getLiquidity() internal view returns (uint256) {
         if (virtualAccounting) {
-            return
-                lendingPool
-                    .getReserveDataExtended(address(asset))
-                    .virtualUnderlyingBalance;
+            return lendingPool.getVirtualUnderlyingBalance(address(asset));
         } else {
-            return asset.balanceOf(address(aToken));
+            //return asset.balanceOf(address(aToken));
         }
     }
 
