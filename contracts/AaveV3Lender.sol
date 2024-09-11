@@ -392,7 +392,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         if (virtualAccounting) {
             return lendingPool.getVirtualUnderlyingBalance(address(asset));
         } else {
-            //return asset.balanceOf(address(aToken));
+            return asset.balanceOf(address(aToken));
         }
     }
 
