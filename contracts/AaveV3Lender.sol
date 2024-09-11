@@ -38,6 +38,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     // The token that we get in return for deposits.
     IAToken public immutable aToken;
 
+    // Local variable if the pool uses virtual accounting.
     bool internal virtualAccounting;
 
     // Bool to decide to try and claim rewards. Defaults to False.
@@ -73,6 +74,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         // Set the rewards controller
         rewardsController = aToken.getIncentivesController();
 
+        // Set if using the virtual accounting.
         setIsVirtualAccActive();
 
         // Make approve the lending pool for cheaper deposits.
@@ -253,9 +255,9 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     function checkCooldown() public view returns (bool) {
         if (block.chainid != 1) return false;
 
-        uint256 cooldownStartTimestamp = IStakedAave(stkAave).stakersCooldowns(
-            address(this)
-        );
+        uint256 cooldownStartTimestamp = IStakedAave(stkAave)
+            .stakersCooldowns(address(this))
+            .timestamp;
 
         if (cooldownStartTimestamp == 0) return false;
 
@@ -376,10 +378,16 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         return (_data & mask) != 0;
     }
 
+    /**
+    * @dev Open function to set the local bool corresponding to 
+    *   if the pool is using the virtual accounting method.
+     */
     function setIsVirtualAccActive() public {
         virtualAccounting =
-            (lendingPool.getReserveData(address(asset)).configuration.data &
-                ~VIRTUAL_ACC_ACTIVE_MASK) !=
+            (lendingPool
+                .getReserveDataExtended(address(asset))
+                .configuration
+                .data & ~VIRTUAL_ACC_ACTIVE_MASK) !=
             0;
     }
 
@@ -388,10 +396,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      */
     function _getLiquidity() internal view returns (uint256) {
         if (virtualAccounting) {
-            return
-                lendingPool
-                    .getReserveDataExtended(address(asset))
-                    .virtualUnderlyingBalance;
+            return lendingPool.getVirtualUnderlyingBalance(address(asset));
         } else {
             return asset.balanceOf(address(aToken));
         }
@@ -503,7 +508,6 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @param _amount The amount of asset to attempt to free.
      */
     function _emergencyWithdraw(uint256 _amount) internal override {
-        // Doesn't check liquidity in case tracking is ever turned off.
         _freeFunds(_amount);
     }
 }

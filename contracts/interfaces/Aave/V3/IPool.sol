@@ -612,6 +612,10 @@ interface IPool {
         address asset
     ) external view returns (DataTypesV3.ReserveData memory);
 
+    function getVirtualUnderlyingBalance(
+        address asset
+    ) external view returns (uint256);
+
     /**
      * @notice Returns the state and configuration of the reserve
      * @param asset The address of the underlying asset of the reserve
