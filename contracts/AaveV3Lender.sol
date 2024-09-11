@@ -502,7 +502,6 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @param _amount The amount of asset to attempt to free.
      */
     function _emergencyWithdraw(uint256 _amount) internal override {
-        // Doesn't check liquidity in case tracking is ever turned off.
         _freeFunds(_amount);
     }
 }
