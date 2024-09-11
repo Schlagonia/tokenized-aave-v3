@@ -25,6 +25,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
 
     // To get the Supply cap of an asset.
     uint256 internal constant SUPPLY_CAP_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFF000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFF; // prettier-ignore
+    uint256 internal constant VIRTUAL_ACC_ACTIVE_MASK = 0xEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF; // prettier-ignore
     uint256 internal constant SUPPLY_CAP_START_BIT_POSITION = 116;
     uint256 internal immutable decimals;
 
@@ -36,6 +37,8 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
 
     // The token that we get in return for deposits.
     IAToken public immutable aToken;
+
+    bool internal virtualAccounting;
 
     // Bool to decide to try and claim rewards. Defaults to False.
     bool public claimRewards;
@@ -69,6 +72,8 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
 
         // Set the rewards controller
         rewardsController = aToken.getIncentivesController();
+
+        setIsVirtualAccActive();
 
         // Make approve the lending pool for cheaper deposits.
         asset.safeApprove(address(lendingPool), type(uint256).max);
@@ -248,9 +253,9 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     function checkCooldown() public view returns (bool) {
         if (block.chainid != 1) return false;
 
-        uint256 cooldownStartTimestamp = IStakedAave(stkAave).stakersCooldowns(
-            address(this)
-        );
+        uint256 cooldownStartTimestamp = IStakedAave(stkAave)
+            .stakersCooldowns(address(this))
+            .timestamp;
 
         if (cooldownStartTimestamp == 0) return false;
 
@@ -371,13 +376,24 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         return (_data & mask) != 0;
     }
 
+    function setIsVirtualAccActive() public {
+        virtualAccounting =
+            (lendingPool
+                .getReserveDataExtended(address(asset))
+                .configuration
+                .data & ~VIRTUAL_ACC_ACTIVE_MASK) !=
+            0;
+    }
+
     /**
-    @ @dev Gets the liquid balance that can be withdrawn from the pool
-    */
-    function _virtualBalance() internal view returns (uint256) {
-        lendingPool
-            .getReserveDataExtended(address(asset))
-            .virtualUnderlyingBalance;
+     * @dev Gets the liquid balance that can be withdrawn from the pool
+     */
+    function _getLiquidity() internal view returns (uint256) {
+        if (virtualAccounting) {
+            return lendingPool.getVirtualUnderlyingBalance(address(asset));
+        } else {
+            return asset.balanceOf(address(aToken));
+        }
     }
 
     /**
@@ -410,7 +426,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
             )
         ) {
             // Get the tracked virtual balance
-            liquidity = _virtualBalance();
+            liquidity = _getLiquidity();
         }
         return balanceOfAsset() + liquidity;
     }
@@ -486,7 +502,6 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @param _amount The amount of asset to attempt to free.
      */
     function _emergencyWithdraw(uint256 _amount) internal override {
-        // Doesn't check liquidity in case tracking is ever turned off.
         _freeFunds(_amount);
     }
 }
