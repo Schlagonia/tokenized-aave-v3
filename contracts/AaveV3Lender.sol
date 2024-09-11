@@ -372,6 +372,15 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     }
 
     /**
+    @ @dev Gets the liquid balance that can be withdrawn from the pool
+    */
+    function _virtualBalance() internal view returns (uint256) {
+        lendingPool
+            .getReserveDataExtended(address(asset))
+            .virtualUnderlyingBalance;
+    }
+
+    /**
      * @notice Gets the max amount of `asset` that can be withdrawn.
      * @dev Defaults to an unlimited amount for any address. But can
      * be overridden by strategists.
@@ -401,9 +410,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
             )
         ) {
             // Get the tracked virtual balance
-            liquidity = lendingPool
-                .getReserveDataExtended(address(asset))
-                .virtualUnderlyingBalance;
+            liquidity = _virtualBalance();
         }
         return balanceOfAsset() + liquidity;
     }
@@ -479,13 +486,6 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @param _amount The amount of asset to attempt to free.
      */
     function _emergencyWithdraw(uint256 _amount) internal override {
-        _freeFunds(
-            Math.min(
-                _amount,
-                lendingPool
-                    .getReserveDataExtended(address(asset))
-                    .virtualUnderlyingBalance
-            )
-        );
+        _freeFunds(Math.min(_amount, _virtualBalance()));
     }
 }
