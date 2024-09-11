@@ -18,9 +18,6 @@ import {AuctionSwapper, Auction} from "@periphery/swappers/AuctionSwapper.sol";
 contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     using SafeERC20 for ERC20;
 
-    // The pool to deposit and withdraw through.
-    IPool public immutable lendingPool;
-
     IStakedAave internal constant stkAave =
         IStakedAave(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
     address internal constant AAVE =
@@ -31,14 +28,17 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     uint256 internal constant SUPPLY_CAP_START_BIT_POSITION = 116;
     uint256 internal immutable decimals;
 
+    // The pool to deposit and withdraw through.
+    IPool public immutable lendingPool;
+
     // The a Token specific rewards contract for claiming rewards.
     IRewardsController public immutable rewardsController;
 
     // The token that we get in return for deposits.
     IAToken public immutable aToken;
 
-    // Bool to decide to try and claim rewards. Defaults to True.
-    bool public claimRewards = true;
+    // Bool to decide to try and claim rewards. Defaults to False.
+    bool public claimRewards;
 
     // If rewards should be sold through Auctions.
     bool public useAuction = true;
@@ -479,6 +479,13 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @param _amount The amount of asset to attempt to free.
      */
     function _emergencyWithdraw(uint256 _amount) internal override {
-        _freeFunds(_amount);
+        _freeFunds(
+            Math.min(
+                _amount,
+                lendingPool
+                    .getReserveDataExtended(address(asset))
+                    .virtualUnderlyingBalance
+            )
+        );
     }
 }

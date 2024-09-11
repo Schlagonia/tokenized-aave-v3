@@ -68,8 +68,6 @@ contract AaveV3LenderFactory {
 
         newStrategy.setEmergencyAdmin(sms);
 
-        newStrategy.setClaimRewards(false);
-
         newStrategy.setPerformanceFee(500);
 
         newStrategy.setProfitMaxUnlockTime(60 * 60 * 24 * 3);
