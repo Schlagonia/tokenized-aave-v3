@@ -17,7 +17,7 @@ interface IStakedAave {
 
     function getTotalRewardsBalance(address) external view returns (uint256);
 
-    function COOLDOWN_SECONDS() external view returns (uint256);
+    function getCooldownSeconds() external view returns (uint256);
 
     function stakersCooldowns(
         address

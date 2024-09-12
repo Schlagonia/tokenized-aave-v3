@@ -223,7 +223,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
 
-            if (token == address(asset)) {
+            if (token == address(asset) || token == address(aToken)) {
                 continue;
             } else if (token == address(stkAave)) {
                 // We swap Aave => asset
@@ -261,11 +261,11 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
 
         if (cooldownStartTimestamp == 0) return false;
 
-        uint256 COOLDOWN_SECONDS = IStakedAave(stkAave).COOLDOWN_SECONDS();
+        uint256 cooldownSeconds = IStakedAave(stkAave).getCooldownSeconds();
         uint256 UNSTAKE_WINDOW = IStakedAave(stkAave).UNSTAKE_WINDOW();
-        if (block.timestamp >= cooldownStartTimestamp + COOLDOWN_SECONDS) {
+        if (block.timestamp >= cooldownStartTimestamp + cooldownSeconds) {
             return
-                block.timestamp - (cooldownStartTimestamp + COOLDOWN_SECONDS) <=
+                block.timestamp - (cooldownStartTimestamp + cooldownSeconds) <=
                 UNSTAKE_WINDOW;
         } else {
             return false;
@@ -379,8 +379,8 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     }
 
     /**
-    * @dev Open function to set the local bool corresponding to 
-    *   if the pool is using the virtual accounting method.
+     * @dev Open function to set the local bool corresponding to
+     *   if the pool is using the virtual accounting method.
      */
     function setIsVirtualAccActive() public {
         virtualAccounting =
