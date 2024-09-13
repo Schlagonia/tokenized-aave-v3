@@ -1,5 +1,5 @@
 import ape
-from ape import Contract
+from ape import Contract, accounts
 from utils.constants import MAX_BPS
 from utils.utils import days_to_secs, increase_time
 import pytest
@@ -128,6 +128,87 @@ def test__profitable_report__with_fee(
     rewards_balance = strategy.balanceOf(rewards)
 
     strategy.redeem(rewards_balance, rewards, rewards, sender=rewards)
+
+
+def test__withdraw_limit_airdrop(
+    chain,
+    asset,
+    strategy,
+    user,
+    deposit,
+    amount,
+    whale,
+):
+    user_balance_before = asset.balanceOf(user)
+
+    # Deposit to the strategy
+    deposit()
+
+    assert strategy.totalAssets() == amount
+
+    aToken = strategy.aToken()
+
+    limit = strategy.availableWithdrawLimit(user)
+
+    assert limit <= asset.balanceOf(aToken)
+    assert limit > amount
+
+    asset.transfer(aToken, amount, sender=whale)
+
+    new_limit = strategy.availableWithdrawLimit(user)
+
+    # Should not be effected
+    assert new_limit == limit
+    assert limit < asset.balanceOf(aToken)
+    assert limit > amount
+
+    chain.mine(10)
+
+    # withdrawal
+    strategy.withdraw(amount, user, user, sender=user)
+
+    assert strategy.totalAssets() == 0
+
+    assert asset.balanceOf(user) == user_balance_before
+
+
+def test__withdraw_limit_illiquid(
+    chain, asset, strategy, user, deposit, amount, whale, lendingPool
+):
+    user_balance_before = asset.balanceOf(user)
+
+    # Deposit to the strategy
+    deposit()
+
+    assert strategy.totalAssets() == amount
+
+    aToken = Contract(strategy.aToken())
+
+    aToken_whale = accounts["0xb21DeB6D23D6Bd067D50c7e3EA6bc8874061342b"]
+
+    limit = strategy.availableWithdrawLimit(user)
+
+    balance = aToken.balanceOf(aToken_whale)
+
+    assert balance > limit  # Cant make illiquid for test
+
+    to_leave = amount // 10
+
+    lendingPool.withdraw(asset, limit - to_leave, aToken_whale, sender=aToken_whale)
+
+    assert strategy.availableWithdrawLimit(user) == to_leave
+    assert strategy.maxWithdraw(user) == to_leave
+
+    max_redeem = strategy.maxRedeem(user)
+
+    strategy.redeem(max_redeem, user, user, sender=user)
+
+    asset.transfer(aToken, amount, sender=whale)
+
+    assert strategy.maxRedeem(user) == 0
+
+    with ape.reverts("ERC4626: redeem more than max"):
+        strategy.redeem(1, user, user, sender=user)
 
 
 def test__tend_trigger(

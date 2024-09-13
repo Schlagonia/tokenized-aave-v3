@@ -18,10 +18,6 @@ import {AuctionSwapper, Auction} from "@periphery/swappers/AuctionSwapper.sol";
 contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     using SafeERC20 for ERC20;
 
-    // The pool to deposit and withdraw through.
-    IPool public constant lendingPool =
-        IPool(0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2);
-
     IStakedAave internal constant stkAave =
         IStakedAave(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
     address internal constant AAVE =
@@ -29,8 +25,12 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
 
     // To get the Supply cap of an asset.
     uint256 internal constant SUPPLY_CAP_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFF000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFF; // prettier-ignore
+    uint256 internal constant VIRTUAL_ACC_ACTIVE_MASK = 0xEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF; // prettier-ignore
     uint256 internal constant SUPPLY_CAP_START_BIT_POSITION = 116;
     uint256 internal immutable decimals;
+
+    // The pool to deposit and withdraw through.
+    IPool public immutable lendingPool;
 
     // The a Token specific rewards contract for claiming rewards.
     IRewardsController public immutable rewardsController;
@@ -38,8 +38,11 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     // The token that we get in return for deposits.
     IAToken public immutable aToken;
 
-    // Bool to decide to try and claim rewards. Defaults to True.
-    bool public claimRewards = true;
+    // Local variable if the pool uses virtual accounting.
+    bool internal virtualAccounting;
+
+    // Bool to decide to try and claim rewards. Defaults to False.
+    bool public claimRewards;
 
     // If rewards should be sold through Auctions.
     bool public useAuction = true;
@@ -52,8 +55,13 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
 
     constructor(
         address _asset,
-        string memory _name
+        string memory _name,
+        address _lendingPool,
+        address _router,
+        address _base
     ) BaseStrategy(_asset, _name) {
+        lendingPool = IPool(_lendingPool);
+
         // Set the aToken based on the asset we are using.
         aToken = IAToken(lendingPool.getReserveData(_asset).aTokenAddress);
 
@@ -66,14 +74,17 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         // Set the rewards controller
         rewardsController = aToken.getIncentivesController();
 
+        // Set if using the virtual accounting.
+        setIsVirtualAccActive();
+
         // Make approve the lending pool for cheaper deposits.
         asset.safeApprove(address(lendingPool), type(uint256).max);
 
         // Set uni swapper values
         // We will use the minAmountToSell mapping instead.
         minAmountToSell = 0;
-        base = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
-        router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+        router = _router;
+        base = _base;
     }
 
     /**
@@ -212,7 +223,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
 
-            if (token == address(asset)) {
+            if (token == address(asset) || token == address(aToken)) {
                 continue;
             } else if (token == address(stkAave)) {
                 // We swap Aave => asset
@@ -242,17 +253,19 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     }
 
     function checkCooldown() public view returns (bool) {
-        uint256 cooldownStartTimestamp = IStakedAave(stkAave).stakersCooldowns(
-            address(this)
-        );
+        if (block.chainid != 1) return false;
+
+        uint256 cooldownStartTimestamp = IStakedAave(stkAave)
+            .stakersCooldowns(address(this))
+            .timestamp;
 
         if (cooldownStartTimestamp == 0) return false;
 
-        uint256 COOLDOWN_SECONDS = IStakedAave(stkAave).COOLDOWN_SECONDS();
+        uint256 cooldownSeconds = IStakedAave(stkAave).getCooldownSeconds();
         uint256 UNSTAKE_WINDOW = IStakedAave(stkAave).UNSTAKE_WINDOW();
-        if (block.timestamp >= cooldownStartTimestamp + COOLDOWN_SECONDS) {
+        if (block.timestamp >= cooldownStartTimestamp + cooldownSeconds) {
             return
-                block.timestamp - (cooldownStartTimestamp + COOLDOWN_SECONDS) <=
+                block.timestamp - (cooldownStartTimestamp + cooldownSeconds) <=
                 UNSTAKE_WINDOW;
         } else {
             return false;
@@ -260,6 +273,8 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     }
 
     function _harvestStkAave() internal {
+        if (block.chainid != 1) return;
+
         // request start of cooldown period
         if (ERC20(address(stkAave)).balanceOf(address(this)) > 0) {
             stkAave.cooldown();
@@ -364,6 +379,30 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     }
 
     /**
+     * @dev Open function to set the local bool corresponding to
+     *   if the pool is using the virtual accounting method.
+     */
+    function setIsVirtualAccActive() public {
+        virtualAccounting =
+            (lendingPool
+                .getReserveDataExtended(address(asset))
+                .configuration
+                .data & ~VIRTUAL_ACC_ACTIVE_MASK) !=
+            0;
+    }
+
+    /**
+     * @dev Gets the liquid balance that can be withdrawn from the pool
+     */
+    function _getLiquidity() internal view returns (uint256) {
+        if (virtualAccounting) {
+            return lendingPool.getVirtualUnderlyingBalance(address(asset));
+        } else {
+            return asset.balanceOf(address(aToken));
+        }
+    }
+
+    /**
      * @notice Gets the max amount of `asset` that can be withdrawn.
      * @dev Defaults to an unlimited amount for any address. But can
      * be overridden by strategists.
@@ -384,15 +423,17 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     function availableWithdrawLimit(
         address /*_owner*/
     ) public view override returns (uint256) {
-        uint256 liquidity = asset.balanceOf(address(aToken));
+        uint256 liquidity;
 
-        // Cannot withdraw from the pool when paused.
+        // IF pool is not paused
         if (
-            _isPaused(
+            !_isPaused(
                 lendingPool.getReserveData(address(asset)).configuration.data
             )
-        ) liquidity = 0;
-
+        ) {
+            // Get the tracked virtual balance
+            liquidity = _getLiquidity();
+        }
         return balanceOfAsset() + liquidity;
     }
 

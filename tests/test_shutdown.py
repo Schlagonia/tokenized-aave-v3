@@ -79,7 +79,7 @@ def test__shutdown__report_doesnt_reinvest(
     # Report should still work correctly
     tx = strategy.report(sender=management)
 
-    profit, loss = tx.return_value
+    (profit, loss) = tx.return_value
     assert profit > 0
 
     performance_fees = profit * strategy.performanceFee() // MAX_BPS

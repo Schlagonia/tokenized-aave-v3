@@ -6,6 +6,8 @@ import {IAuctionSwapper} from "@periphery/swappers/interfaces/IAuctionSwapper.so
 import {IUniswapV3Swapper} from "@periphery/swappers/interfaces/IUniswapV3Swapper.sol";
 
 interface IStrategyInterface is IStrategy, IUniswapV3Swapper, IAuctionSwapper {
+    function lendingPool() external view returns (address);
+
     function aToken() external view returns (address);
 
     function manualRedeemAave() external;

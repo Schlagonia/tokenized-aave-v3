@@ -17,21 +17,17 @@ dependencies:
   - name: tokenized-strategy
     github: yearn/tokenized-strategy
     ref: v3.0.2
-    contracts_folder: src
+    config_override:
+      contracts_folder: src
     exclude:
       - test/**/*
   - name: periphery
     github: yearn/tokenized-strategy-periphery
     ref: master
-    contracts_folder: src
+    config_override:
+      contracts_folder: src
     exclude: 
      - test/**/*
-
-solidity:
-  import_remapping:
-    - "@openzeppelin/contracts=openzeppelin/v4.9.5"
-    - "@tokenized-strategy=tokenized-strategy/v3.0.2"
-    - "@periphery=periphery/master"
 
 ethereum:
   default_network: mainnet-fork
