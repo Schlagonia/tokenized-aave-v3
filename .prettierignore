@@ -1,3 +1,6 @@
 .build/
 .cache/
 venv/
+lib/
+out/
+cache/
