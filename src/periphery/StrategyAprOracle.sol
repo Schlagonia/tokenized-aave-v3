@@ -46,12 +46,12 @@ contract StrategyAprOracle {
             uint256 unbacked,
             ,
             ,
-            uint256 totalStableDebt,
+            ,
             uint256 totalVariableDebt,
             ,
             ,
             ,
-            uint256 averageStableBorrowRate,
+            ,
             ,
             ,
 
@@ -65,16 +65,14 @@ contract StrategyAprOracle {
                 unbacked,
                 _delta > 0 ? uint256(_delta) : 0,
                 _delta < 0 ? uint256(-1 * _delta) : 0,
-                totalStableDebt,
                 totalVariableDebt,
-                averageStableBorrowRate,
                 reserveFactor,
                 asset,
                 true,
                 uint256(reserveData.virtualUnderlyingBalance)
             );
 
-        (uint256 newLiquidityRate, , ) = IReserveInterestRateStrategy(
+        (uint256 newLiquidityRate, ) = IReserveInterestRateStrategy(
             reserveData.interestRateStrategyAddress
         ).calculateInterestRates(params);
 
