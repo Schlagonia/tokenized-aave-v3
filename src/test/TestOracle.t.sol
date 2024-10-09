@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.18;
 
-import "./utils/Setup.sol";
+import "forge-std/console.sol";
+import {Setup, IStrategyInterface} from "./utils/Setup.sol";
 import {StrategyAprOracle} from "../periphery/StrategyAprOracle.sol";
 
 contract TestOracle is Setup {
@@ -46,7 +47,14 @@ contract TestOracle is Setup {
 
     function test_oracle() public {
         address oracle = address(new StrategyAprOracle());
+        strategy = IStrategyInterface(
+            0x832c30802054F60f0CeDb5BE1F9A0e3da2a0Cab4
+        );
+
+        vm.prank(strategy.management());
+        strategy.setClaimRewards(true);
 
         check_oracle(oracle, address(strategy), user, management);
+        assertTrue(false);
     }
 }
