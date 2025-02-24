@@ -47,9 +47,6 @@ contract TestOracle is Setup {
 
     function test_oracle() public {
         address oracle = address(new StrategyAprOracle());
-        strategy = IStrategyInterface(
-            0x832c30802054F60f0CeDb5BE1F9A0e3da2a0Cab4
-        );
 
         vm.prank(strategy.management());
         strategy.setClaimRewards(true);

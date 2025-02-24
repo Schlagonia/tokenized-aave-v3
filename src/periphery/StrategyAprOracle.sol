@@ -103,8 +103,10 @@ contract StrategyAprOracle {
                 _strategy,
                 asset,
                 uint256(
-                    int256(uint256(reserveData.virtualUnderlyingBalance) + totalVariableDebt) +
-                        _delta
+                    int256(
+                        uint256(reserveData.virtualUnderlyingBalance) +
+                            totalVariableDebt
+                    ) + _delta
                 )
             );
         }

@@ -30,19 +30,26 @@ contract Deploy is Script {
 
         StrategyAprOracle oracle = new StrategyAprOracle();
         console.log("Oracle deployed at", address(oracle));
-        
-        address usdcLender = factory.newAaveV3Lender(0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913);
+
+        address usdcLender = factory.newAaveV3Lender(
+            0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+        );
         console.log("USDC Lender deployed at", usdcLender);
 
-        address wethLender = factory.newAaveV3Lender(0x4200000000000000000000000000000000000006);
+        address wethLender = factory.newAaveV3Lender(
+            0x4200000000000000000000000000000000000006
+        );
         console.log("WETH Lender deployed at", wethLender);
 
-        address cbbtcLender = factory.newAaveV3Lender(0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf);
+        address cbbtcLender = factory.newAaveV3Lender(
+            0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf
+        );
         console.log("CB-BTC Lender deployed at", cbbtcLender);
 
-        address cbethLender = factory.newAaveV3Lender(0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22);
+        address cbethLender = factory.newAaveV3Lender(
+            0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22
+        );
         console.log("CBETH Lender deployed at", cbethLender);
-
 
         vm.stopBroadcast();
     }
