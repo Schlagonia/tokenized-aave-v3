@@ -25,10 +25,10 @@ contract StrategyAprOracle {
     uint256 internal constant SECONDS_IN_YEAR = 365 days;
 
     address internal constant WNATIVE =
-        0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
+        0x4200000000000000000000000000000000000006;
 
     IUniswapV2Router02 internal constant router =
-        IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        IUniswapV2Router02(0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506);
 
     /**
      * @notice Will return the expected Apr of a strategy post a debt change.
@@ -103,7 +103,7 @@ contract StrategyAprOracle {
                 _strategy,
                 asset,
                 uint256(
-                    int256(uint256(reserveData.virtualUnderlyingBalance)) +
+                    int256(uint256(reserveData.virtualUnderlyingBalance) + totalVariableDebt) +
                         _delta
                 )
             );
