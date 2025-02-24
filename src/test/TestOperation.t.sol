@@ -183,9 +183,11 @@ contract TestOperation is Setup {
         assertEq(strategy.totalAssets(), _amount);
 
         address aToken = strategy.aToken();
-        address aTokenWhale = 0xb21DeB6D23D6Bd067D50c7e3EA6bc8874061342b;
+        address aTokenWhale = makeAddr("aTokenWhale");
 
         uint256 limit = strategy.availableWithdrawLimit(user);
+
+        deal(address(aToken), aTokenWhale, limit + 1);
 
         uint256 balance = ERC20(aToken).balanceOf(aTokenWhale);
 

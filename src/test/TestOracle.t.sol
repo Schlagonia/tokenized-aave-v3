@@ -6,6 +6,8 @@ import {Setup, IStrategyInterface} from "./utils/Setup.sol";
 import {StrategyAprOracle} from "../periphery/StrategyAprOracle.sol";
 
 contract TestOracle is Setup {
+    address public v2_router = 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D;
+
     function setUp() public override {
         super.setUp();
     }
@@ -46,7 +48,9 @@ contract TestOracle is Setup {
     }
 
     function test_oracle() public {
-        address oracle = address(new StrategyAprOracle());
+        address oracle = address(
+            new StrategyAprOracle(address(WETH), address(v2_router))
+        );
 
         vm.prank(strategy.management());
         strategy.setClaimRewards(true);

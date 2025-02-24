@@ -28,7 +28,11 @@ contract Deploy is Script {
 
         console.log("Factory deployed at", address(factory));
 
-        StrategyAprOracle oracle = new StrategyAprOracle();
+        StrategyAprOracle oracle = new StrategyAprOracle(
+            0x4200000000000000000000000000000000000006,
+            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+        );
+
         console.log("Oracle deployed at", address(oracle));
 
         address usdcLender = factory.newAaveV3Lender(

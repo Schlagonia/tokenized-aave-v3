@@ -22,13 +22,18 @@ contract StrategyAprOracle {
     address internal constant AAVE =
         address(0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9);
 
+    uint256 internal constant VIRTUAL_ACC_ACTIVE_MASK = 0xEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF; // prettier-ignore
+
     uint256 internal constant SECONDS_IN_YEAR = 365 days;
 
-    address internal constant WNATIVE =
-        0x4200000000000000000000000000000000000006;
+    address internal immutable WNATIVE;
 
-    IUniswapV2Router02 internal constant router =
-        IUniswapV2Router02(0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506);
+    IUniswapV2Router02 public immutable router;
+
+    constructor(address _wNative, address _router) {
+        WNATIVE = _wNative;
+        router = IUniswapV2Router02(_router);
+    }
 
     /**
      * @notice Will return the expected Apr of a strategy post a debt change.
@@ -59,9 +64,11 @@ contract StrategyAprOracle {
             lendingPool.ADDRESSES_PROVIDER().getPoolDataProvider()
         );
 
+        DataTypesV3.ReserveDataLegacy memory reserveData = lendingPool
+            .getReserveData(asset);
+
         //need to calculate new supplyRate after Deposit (when deposit has not been done yet)
-        DataTypesV3.ReserveData memory reserveData = lendingPool
-            .getReserveDataExtended(asset);
+        uint256 balance = lendingPool.getVirtualUnderlyingBalance(asset);
 
         (
             uint256 unbacked,
@@ -83,14 +90,14 @@ contract StrategyAprOracle {
 
         DataTypesV3.CalculateInterestRatesParams memory params = DataTypesV3
             .CalculateInterestRatesParams(
-                unbacked,
+                unbacked + reserveData.deficit,
                 _delta > 0 ? uint256(_delta) : 0,
                 _delta < 0 ? uint256(-1 * _delta) : 0,
                 totalVariableDebt,
                 reserveFactor,
                 asset,
                 true,
-                uint256(reserveData.virtualUnderlyingBalance)
+                balance
             );
 
         (uint256 newLiquidityRate, ) = IReserveInterestRateStrategy(
@@ -102,12 +109,7 @@ contract StrategyAprOracle {
             rewardsRate = getRewardApr(
                 _strategy,
                 asset,
-                uint256(
-                    int256(
-                        uint256(reserveData.virtualUnderlyingBalance) +
-                            totalVariableDebt
-                    ) + _delta
-                )
+                uint256(int256(balance + totalVariableDebt) + _delta)
             );
         }
 
@@ -201,7 +203,7 @@ contract StrategyAprOracle {
     function getTokenOutPath(
         address _tokenIn,
         address _tokenOut
-    ) internal pure returns (address[] memory _path) {
+    ) internal view returns (address[] memory _path) {
         bool isNative = _tokenIn == WNATIVE || _tokenOut == WNATIVE;
         _path = new address[](isNative ? 2 : 3);
         _path[0] = _tokenIn;
