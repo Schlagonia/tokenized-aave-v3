@@ -447,11 +447,15 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         auction = _auction;
     }
 
-    function _auctionKicked(
+    function kickAuction(address _token) external returns (uint256) {
+        return _kickAuction(_token);
+    }
+
+    function _kickAuction(
         address _token
     ) internal virtual override returns (uint256 _kicked) {
         require(_token != address(asset) && _token != address(aToken), "asset");
-        _kicked = super._auctionKicked(_token);
+        _kicked = super._kickAuction(_token);
         require(_kicked >= minAmountToSellMapping[_token], "too little");
     }
 

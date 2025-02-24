@@ -3,8 +3,7 @@ pragma solidity ^0.8.18;
 
 import "./utils/Setup.sol";
 //import {IStrategyInterface} from "../src/interfaces/IStrategyInterface.sol";
-import {IAuction} from "../../src/interfaces/IAuction.sol";
-import {AuctionFactory} from "@periphery/Auctions/AuctionFactory.sol";
+import {AuctionFactory, Auction} from "@periphery/Auctions/AuctionFactory.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract TestFactory is Setup {
@@ -149,16 +148,13 @@ contract TestFactory is Setup {
             management
         );
 
-        IAuction auction = IAuction(newAuction);
+        Auction auction = Auction(newAuction);
 
         vm.prank(management);
         strategy.setAuction(address(auction));
 
         vm.prank(management);
-        auction.setHookFlags(true, true, false, false);
-
-        vm.prank(management);
-        bytes32 id = auction.enable(address(AAVE), address(strategy));
+        auction.enable(address(AAVE));
 
         vm.startPrank(user);
         ERC20(_asset).approve(address(strategy), _amount);
@@ -173,15 +169,15 @@ contract TestFactory is Setup {
         deal(address(AAVE), address(strategy), aaveAmount);
         assertEq(AAVE.balanceOf(address(strategy)), aaveAmount);
 
-        assertEq(auction.kickable(id), aaveAmount);
+        assertEq(strategy.kickable(address(AAVE)), aaveAmount);
 
         vm.prank(management);
-        assertEq(auction.kick(id), aaveAmount);
+        assertEq(strategy.kickAuction(address(AAVE)), aaveAmount);
         assertEq(AAVE.balanceOf(address(auction)), aaveAmount);
 
         skip(AuctionFactory(auctionFactory).DEFAULT_AUCTION_LENGTH() / 2);
 
-        uint256 needed = auction.getAmountNeeded(id, aaveAmount);
+        uint256 needed = auction.getAmountNeeded(address(AAVE), aaveAmount);
 
         assertGt(needed, 0);
 
@@ -189,7 +185,7 @@ contract TestFactory is Setup {
 
         vm.startPrank(buyer);
         ERC20(_asset).approve(address(auction), needed);
-        auction.take(id);
+        auction.take(address(AAVE));
         vm.stopPrank();
 
         assertEq(AAVE.balanceOf(address(auction)), 0);

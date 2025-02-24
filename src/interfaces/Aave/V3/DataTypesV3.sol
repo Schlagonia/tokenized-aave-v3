@@ -18,9 +18,8 @@ library DataTypesV3 {
         uint128 variableBorrowIndex;
         //the current variable borrow rate. Expressed in ray
         uint128 currentVariableBorrowRate;
-        /// @notice reused `__deprecatedStableBorrowRate` storage from pre 3.2+
-        // the current accumulate deficit in underlying tokens
-        uint128 deficit;
+        // DEPRECATED on v3.2.0
+        uint128 currentStableBorrowRate;
         //timestamp of last update
         uint40 lastUpdateTimestamp;
         //the id of the reserve. Represents the position in the list of the active reserves

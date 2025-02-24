@@ -64,9 +64,6 @@ contract StrategyAprOracle {
             lendingPool.ADDRESSES_PROVIDER().getPoolDataProvider()
         );
 
-        DataTypesV3.ReserveDataLegacy memory reserveData = lendingPool
-            .getReserveData(asset);
-
         //need to calculate new supplyRate after Deposit (when deposit has not been done yet)
         uint256 balance = lendingPool.getVirtualUnderlyingBalance(asset);
 
@@ -90,7 +87,7 @@ contract StrategyAprOracle {
 
         DataTypesV3.CalculateInterestRatesParams memory params = DataTypesV3
             .CalculateInterestRatesParams(
-                unbacked + reserveData.deficit,
+                unbacked + lendingPool.getReserveDeficit(asset),
                 _delta > 0 ? uint256(_delta) : 0,
                 _delta < 0 ? uint256(-1 * _delta) : 0,
                 totalVariableDebt,
@@ -101,7 +98,7 @@ contract StrategyAprOracle {
             );
 
         (uint256 newLiquidityRate, ) = IReserveInterestRateStrategy(
-            reserveData.interestRateStrategyAddress
+            lendingPool.getReserveData(asset).interestRateStrategyAddress
         ).calculateInterestRates(params);
 
         uint256 rewardsRate;
