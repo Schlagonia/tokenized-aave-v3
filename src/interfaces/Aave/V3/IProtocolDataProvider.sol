@@ -94,4 +94,6 @@ interface IProtocolDataProvider {
             address stableDebtTokenAddress,
             address variableDebtTokenAddress
         );
+
+    function getIsVirtualAccActive(address asset) external view returns (bool);
 }

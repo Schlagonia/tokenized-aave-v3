@@ -53,4 +53,11 @@ interface IPoolDataProvider {
      * @return The total debt for asset
      **/
     function getTotalDebt(address asset) external view returns (uint256);
+
+    /**
+     * @notice Returns the deficit of the reserve
+     * @param asset The address of the underlying asset of the reserve
+     * @return The reserve deficit
+     */
+    function getReserveDeficit(address asset) external view returns (uint256);
 }

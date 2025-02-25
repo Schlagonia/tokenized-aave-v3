@@ -182,22 +182,15 @@ contract TestOperation is Setup {
 
         assertEq(strategy.totalAssets(), _amount);
 
-        address aToken = strategy.aToken();
-        address aTokenWhale = 0xb21DeB6D23D6Bd067D50c7e3EA6bc8874061342b;
-
-        uint256 limit = strategy.availableWithdrawLimit(user);
-
-        uint256 balance = ERC20(aToken).balanceOf(aTokenWhale);
-
-        assertGt(balance, limit); // Can't make illiquid for test
-
         uint256 toLeave = _amount / 10;
 
-        vm.prank(aTokenWhale);
-        IPool(LENDING_POOL).withdraw(
-            address(asset),
-            limit - toLeave,
-            aTokenWhale
+        vm.mockCall(
+            address(LENDING_POOL),
+            abi.encodeWithSelector(
+                IPool.getVirtualUnderlyingBalance.selector,
+                address(asset)
+            ),
+            abi.encode(toLeave)
         );
 
         assertEq(strategy.availableWithdrawLimit(user), toLeave);
@@ -208,9 +201,14 @@ contract TestOperation is Setup {
         vm.prank(user);
         strategy.redeem(maxRedeem, user, user);
 
-        deal(address(asset), WHALE, _amount);
-        vm.prank(WHALE);
-        asset.transfer(aToken, _amount);
+        vm.mockCall(
+            address(LENDING_POOL),
+            abi.encodeWithSelector(
+                IPool.getVirtualUnderlyingBalance.selector,
+                address(asset)
+            ),
+            abi.encode(0)
+        );
 
         assertEq(strategy.maxRedeem(user), 0);
 

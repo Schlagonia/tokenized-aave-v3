@@ -3,6 +3,10 @@ pragma solidity >=0.6.12;
 pragma experimental ABIEncoderV2;
 
 library DataTypesV3 {
+    /**
+     * This exists specifically to maintain the `getReserveData()` interface, since the new, internal
+     * `ReserveData` struct includes the reserve's `virtualUnderlyingBalance`.
+     */
     struct ReserveDataLegacy {
         //stores the reserve configuration
         ReserveConfigurationMap configuration;
@@ -14,7 +18,7 @@ library DataTypesV3 {
         uint128 variableBorrowIndex;
         //the current variable borrow rate. Expressed in ray
         uint128 currentVariableBorrowRate;
-        //the current stable borrow rate. Expressed in ray
+        // DEPRECATED on v3.2.0
         uint128 currentStableBorrowRate;
         //timestamp of last update
         uint40 lastUpdateTimestamp;
@@ -22,7 +26,7 @@ library DataTypesV3 {
         uint16 id;
         //aToken address
         address aTokenAddress;
-        //stableDebtToken address
+        // DEPRECATED on v3.2.0
         address stableDebtTokenAddress;
         //variableDebtToken address
         address variableDebtTokenAddress;
@@ -47,8 +51,9 @@ library DataTypesV3 {
         uint128 variableBorrowIndex;
         //the current variable borrow rate. Expressed in ray
         uint128 currentVariableBorrowRate;
-        //the current stable borrow rate. Expressed in ray
-        uint128 currentStableBorrowRate;
+        /// @notice reused `__deprecatedStableBorrowRate` storage from pre 3.2+
+        // the current accumulate deficit in underlying tokens
+        uint128 deficit;
         //timestamp of last update
         uint40 lastUpdateTimestamp;
         //the id of the reserve. Represents the position in the list of the active reserves

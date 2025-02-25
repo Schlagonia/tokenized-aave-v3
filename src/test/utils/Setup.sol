@@ -25,7 +25,7 @@ contract Setup is ExtendedTest {
     // Contracts
     IStrategyInterface public strategy;
     AaveV3LenderFactory public factory;
-    StrategyAprOracle public oracle;
+    //StrategyAprOracle public oracle;
 
     uint256 public MAX_BPS = 10_000;
     // Addresses
@@ -54,7 +54,7 @@ contract Setup is ExtendedTest {
         keeper = makeAddr("keeper");
         buyer = makeAddr("buyer");
 
-        asset = DAI;
+        asset = USDC;
 
         // Setup amounts
         minFuzzAmount = 100_000;
@@ -80,7 +80,7 @@ contract Setup is ExtendedTest {
         strategy.setPerformanceFee(1000); // 10% performance fee
 
         // Deploy oracle
-        oracle = new StrategyAprOracle();
+        //oracle = new StrategyAprOracle();
     }
 
     function createStrategy(

@@ -10,6 +10,7 @@ import {IAToken} from "./interfaces/Aave/V3/IAtoken.sol";
 import {IStakedAave} from "./interfaces/Aave/V3/IStakedAave.sol";
 import {IPool} from "./interfaces/Aave/V3/IPool.sol";
 import {IRewardsController} from "./interfaces/Aave/V3/IRewardsController.sol";
+import {IProtocolDataProvider} from "./interfaces/Aave/V3/IProtocolDataProvider.sol";
 
 // Swappers
 import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
@@ -38,9 +39,6 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     // The token that we get in return for deposits.
     IAToken public immutable aToken;
 
-    // Local variable if the pool uses virtual accounting.
-    bool internal virtualAccounting;
-
     // Bool to decide to try and claim rewards. Defaults to False.
     bool public claimRewards;
 
@@ -62,8 +60,15 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     ) BaseStrategy(_asset, _name) {
         lendingPool = IPool(_lendingPool);
 
+        require(
+            IProtocolDataProvider(
+                lendingPool.ADDRESSES_PROVIDER().getPoolDataProvider()
+            ).getIsVirtualAccActive(_asset),
+            "!virtualAcc"
+        );
+
         // Set the aToken based on the asset we are using.
-        aToken = IAToken(lendingPool.getReserveData(_asset).aTokenAddress);
+        aToken = IAToken(lendingPool.getReserveAToken(_asset));
 
         // Make sure its a real token.
         require(address(aToken) != address(0), "!aToken");
@@ -73,9 +78,6 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
 
         // Set the rewards controller
         rewardsController = aToken.getIncentivesController();
-
-        // Set if using the virtual accounting.
-        setIsVirtualAccActive();
 
         // Make approve the lending pool for cheaper deposits.
         asset.safeApprove(address(lendingPool), type(uint256).max);
@@ -310,10 +312,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         address /*_owner*/
     ) public view override returns (uint256) {
         // Get the data configuration bitmap.
-        uint256 _data = lendingPool
-            .getReserveData(address(asset))
-            .configuration
-            .data;
+        uint256 _data = lendingPool.getConfiguration(address(asset)).data;
 
         // Cannot deposit when paused or frozen.
         if (_isPaused(_data) || _isFrozen(_data)) return 0;
@@ -340,9 +339,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @return The supply cap
      */
     function getSupplyCap() public view returns (uint256) {
-        _getSupplyCap(
-            lendingPool.getReserveData(address(asset)).configuration.data
-        );
+        return _getSupplyCap(lendingPool.getConfiguration(address(asset)).data);
     }
 
     /**
@@ -359,7 +356,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     /**
      * @dev Paused flag is at the 60th bit
      */
-    function _isPaused(uint256 _data) internal view returns (bool) {
+    function _isPaused(uint256 _data) internal pure returns (bool) {
         // Create a mask with only the 60th bit set
         uint256 mask = 1 << 60; // Bitwise left shift by 59 positions
 
@@ -370,7 +367,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     /**
      * @dev Frozen flag is at the 57th bit.
      */
-    function _isFrozen(uint256 _data) internal view returns (bool) {
+    function _isFrozen(uint256 _data) internal pure returns (bool) {
         // Create a mask with only the 57th bit set
         uint256 mask = 1 << 57; // Bitwise left shift by 56 positions
 
@@ -379,27 +376,10 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     }
 
     /**
-     * @dev Open function to set the local bool corresponding to
-     *   if the pool is using the virtual accounting method.
-     */
-    function setIsVirtualAccActive() public {
-        virtualAccounting =
-            (lendingPool
-                .getReserveDataExtended(address(asset))
-                .configuration
-                .data & ~VIRTUAL_ACC_ACTIVE_MASK) !=
-            0;
-    }
-
-    /**
      * @dev Gets the liquid balance that can be withdrawn from the pool
      */
     function _getLiquidity() internal view returns (uint256) {
-        if (virtualAccounting) {
-            return lendingPool.getVirtualUnderlyingBalance(address(asset));
-        } else {
-            return asset.balanceOf(address(aToken));
-        }
+        return lendingPool.getVirtualUnderlyingBalance(address(asset));
     }
 
     /**
@@ -426,11 +406,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         uint256 liquidity;
 
         // IF pool is not paused
-        if (
-            !_isPaused(
-                lendingPool.getReserveData(address(asset)).configuration.data
-            )
-        ) {
+        if (!_isPaused(lendingPool.getConfiguration(address(asset)).data)) {
             // Get the tracked virtual balance
             liquidity = _getLiquidity();
         }
@@ -471,11 +447,15 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         auction = _auction;
     }
 
-    function _auctionKicked(
+    function kickAuction(address _token) external returns (uint256) {
+        return _kickAuction(_token);
+    }
+
+    function _kickAuction(
         address _token
     ) internal virtual override returns (uint256 _kicked) {
-        require(_token != address(asset), "asset");
-        _kicked = super._auctionKicked(_token);
+        require(_token != address(asset) && _token != address(aToken), "asset");
+        _kicked = super._kickAuction(_token);
         require(_kicked >= minAmountToSellMapping[_token], "too little");
     }
 
