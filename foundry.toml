@@ -3,7 +3,7 @@ src = 'src'
 out = 'out'
 libs = ['lib']
 solc = "0.8.18"
-evm_version = "shanghai"
+evm_version = "cancun"
 
 optimizer = true
 optimizer_runs = 200
@@ -16,3 +16,5 @@ remappings = [
 ]
 
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
+[etherscan]
+unknown_chain = { chain = 146, key = "${SONICSCAN_API_KEY}", url = "${SONICSCAN_URL}" }

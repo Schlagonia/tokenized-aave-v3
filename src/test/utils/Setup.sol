@@ -12,9 +12,9 @@ contract Setup is ExtendedTest {
     ERC20 public constant DAI =
         ERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
     ERC20 public constant WETH =
-        ERC20(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
+        ERC20(0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38);
     ERC20 public constant USDC =
-        ERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+        ERC20(0x29219dd400f2Bf60E5a23d13Be72B486D4038894);
     ERC20 public constant AAVE =
         ERC20(0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9);
 
@@ -30,8 +30,8 @@ contract Setup is ExtendedTest {
     uint256 public MAX_BPS = 10_000;
     // Addresses
     address public constant LENDING_POOL =
-        0x87870Bca3F3fD6335C3F4ce8392D69350B4fA4E2;
-    address public constant ROUTER = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+        0x5362dBb1e601abF3a4c14c22ffEdA64042E5eAA3;
+    address public constant ROUTER = 0x1D368773735ee1E678950B7A97bcA2CafB330CDc;
     address public constant WHALE = 0xBA12222222228d8Ba445958a75a0704d566BF2C8;
 
     address public daddy;
@@ -54,7 +54,7 @@ contract Setup is ExtendedTest {
         keeper = makeAddr("keeper");
         buyer = makeAddr("buyer");
 
-        asset = USDC;
+        asset = WETH;
 
         // Setup amounts
         minFuzzAmount = 100_000;

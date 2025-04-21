@@ -4,56 +4,54 @@ pragma solidity >=0.8.18;
 import "forge-std/Script.sol";
 import {StrategyAprOracle} from "../src/periphery/StrategyAprOracle.sol";
 import {AaveV3LenderFactory} from "../src/AaveV3LenderFactory.sol";
-
+import {IStrategyInterface} from "../src/interfaces/IStrategyInterface.sol";
 // Deploy a contract to a deterministic address with create2 factory.
 contract Deploy is Script {
     // Create X address.
     Deployer public deployer =
         Deployer(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
 
-    address public initGov = 0x6f3cBE2ab3483EC4BA7B672fbdCa0E9B33F88db8;
+    address public weth = 0x039e2fB66102314Ce7b64Ce5Ce3E5183bc94aD38;
+    address public v2_router = 0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24;
 
     function run() external {
         vm.startBroadcast();
 
+        
         AaveV3LenderFactory factory = new AaveV3LenderFactory(
-            0x2D57bB1Ad5EaB2caacb50e8527eb0eE504f49e48,
-            0x2D57bB1Ad5EaB2caacb50e8527eb0eE504f49e48,
-            0x52605BbF54845f520a3E94792d019f62407db2f8,
-            0x01fE3347316b2223961B20689C65eaeA71348e93,
-            0xA238Dd80C259a72e81d7e4664a9801593F98d1c5,
-            0x2626664c2603336E57B271c5C0b26F421741e481,
-            0x4200000000000000000000000000000000000006
+            0xB0612167D2C749131a07c07c254119b9E613c287,
+            0xB0612167D2C749131a07c07c254119b9E613c287,
+            0x52605BbF54845f520a3E94792d019f62407db2f8, 
+            0x35442eC4C1A0C4E864c2Bc45bfc5d17fCEE8ac4C,
+            0x5362dBb1e601abF3a4c14c22ffEdA64042E5eAA3,
+            0x1D368773735ee1E678950B7A97bcA2CafB330CDc,
+            weth
         );
 
         console.log("Factory deployed at", address(factory));
+        
 
         StrategyAprOracle oracle = new StrategyAprOracle(
-            0x4200000000000000000000000000000000000006,
-            0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D
+            weth,
+            v2_router
         );
 
         console.log("Oracle deployed at", address(oracle));
 
-        address usdcLender = factory.newAaveV3Lender(
-            0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
-        );
-        console.log("USDC Lender deployed at", usdcLender);
+        address sLender = factory.newAaveV3Lender(address(weth));  
 
-        address wethLender = factory.newAaveV3Lender(
-            0x4200000000000000000000000000000000000006
-        );
-        console.log("WETH Lender deployed at", wethLender);
+        IStrategyInterface(sLender).acceptManagement();
+        console.log("S Lender deployed at", address(sLender));
 
-        address cbbtcLender = factory.newAaveV3Lender(
-            0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf
-        );
-        console.log("CB-BTC Lender deployed at", cbbtcLender);
+        address usdcLender = factory.newAaveV3Lender(address(0x29219dd400f2Bf60E5a23d13Be72B486D4038894));
 
-        address cbethLender = factory.newAaveV3Lender(
-            0x2Ae3F1Ec7F1F5012CFEab0185bfc7aa3cf0DEc22
-        );
-        console.log("CBETH Lender deployed at", cbethLender);
+        IStrategyInterface(usdcLender).acceptManagement();
+        console.log("USDC Lender deployed at", address(usdcLender));
+
+        address wethLender = factory.newAaveV3Lender(address(0x50c42dEAcD8Fc9773493ED674b675bE577f2634b));
+
+        IStrategyInterface(wethLender).acceptManagement();
+        console.log("WETH Lender deployed at", address(wethLender));
 
         vm.stopBroadcast();
     }
