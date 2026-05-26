@@ -343,9 +343,9 @@ contract SparkLender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         _setAuction(_auction);
     }
 
-    function _kickAuction(address _token) internal virtual override returns (uint256 _kicked) {
+    function kickAuction(address _token) external virtual override onlyKeepers returns (uint256 _kicked) {
         require(kickable(_token) >= minAmountToSell[_token], "too little");
-        _kicked = super._kickAuction(_token);
+        _kicked = _kickAuction(_token);
     }
 
     function protectedTokens() public view virtual override returns (address[] memory) {

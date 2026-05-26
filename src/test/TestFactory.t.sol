@@ -153,7 +153,11 @@ contract TestFactory is Setup {
 
         assertEq(strategy.kickable(address(AAVE)), aaveAmount);
 
-        vm.prank(management);
+        vm.prank(user);
+        vm.expectRevert("!keeper");
+        strategy.kickAuction(address(AAVE));
+
+        vm.prank(keeper);
         assertEq(strategy.kickAuction(address(AAVE)), aaveAmount);
         assertEq(AAVE.balanceOf(address(auction)), aaveAmount);
 
