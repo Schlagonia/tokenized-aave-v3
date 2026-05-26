@@ -3,7 +3,8 @@ pragma solidity ^0.8.18;
 
 import "./utils/Setup.sol";
 //import {IStrategyInterface} from "../src/interfaces/IStrategyInterface.sol";
-import {AuctionFactory, Auction} from "@periphery/Auctions/AuctionFactory.sol";
+import {AuctionFactory} from "@periphery/Auctions/AuctionFactory.sol";
+import {Auction} from "@periphery/Auctions/Auction.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract TestFactory is Setup {
@@ -16,15 +17,13 @@ contract TestFactory is Setup {
     function test_factory_deployed_operation(uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
 
-        address _asset = address(asset) == address(WETH)
-            ? address(USDC)
-            : address(WETH);
+        address _asset = address(asset) == address(WETH) ? address(USDC) : address(WETH);
         if (_asset == address(USDC)) {
             _amount = 100_000 * 1e6;
         }
 
         vm.prank(management);
-        address newStrategy = factory.newAaveV3Lender(_asset);
+        address newStrategy = factory.newSparkLender(_asset);
 
         IStrategyInterface strategy = IStrategyInterface(newStrategy);
 
@@ -48,26 +47,20 @@ contract TestFactory is Setup {
         strategy.withdraw(_amount, user, user);
 
         assertEq(strategy.totalAssets(), 0);
-        assertApproxEqRel(
-            ERC20(_asset).balanceOf(user),
-            userBalanceBefore,
-            RELATIVE_APPROX
-        );
+        assertApproxEqRel(ERC20(_asset).balanceOf(user), userBalanceBefore, RELATIVE_APPROX);
     }
 
     function test_factory_deployed_profitable_report(uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
 
-        address _asset = address(asset) == address(WETH)
-            ? address(USDC)
-            : address(WETH);
+        address _asset = address(asset) == address(WETH) ? address(USDC) : address(WETH);
         uint16 aaveFee = 3000;
         if (_asset == address(USDC)) {
             _amount = 100_000 * 1e6;
         }
 
         vm.prank(management);
-        address newStrategy = factory.newAaveV3Lender(_asset);
+        address newStrategy = factory.newSparkLender(_asset);
 
         IStrategyInterface strategy = IStrategyInterface(newStrategy);
 
@@ -98,9 +91,6 @@ contract TestFactory is Setup {
         assertGt(profit, 0);
         assertEq(loss, 0);
 
-        uint256 performanceFees = (profit * strategy.performanceFee()) /
-            MAX_BPS;
-
         assertGe(strategy.totalAssets(), _amount + profit);
 
         skip(strategy.profitMaxUnlockTime() - 1);
@@ -114,21 +104,16 @@ contract TestFactory is Setup {
         assertGt(ERC20(_asset).balanceOf(user), userBalanceBefore);
     }
 
-    function test_factory_deployed_reward_selling_auction(
-        uint256 _amount
-    ) public {
+    function test_factory_deployed_reward_selling_auction(uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
 
-        address _asset = address(asset) == address(WETH)
-            ? address(USDC)
-            : address(WETH);
-        uint16 aaveFee = 3000;
+        address _asset = address(asset) == address(WETH) ? address(USDC) : address(WETH);
         if (_asset == address(USDC)) {
             _amount = 100_000 * 1e6;
         }
 
         vm.prank(management);
-        address newStrategy = factory.newAaveV3Lender(_asset);
+        address newStrategy = factory.newSparkLender(_asset);
 
         IStrategyInterface strategy = IStrategyInterface(newStrategy);
 
@@ -137,21 +122,18 @@ contract TestFactory is Setup {
 
         deal(_asset, user, _amount);
 
-        assertTrue(strategy.useAuction());
+        assertFalse(strategy.useAuction());
 
-        address auctionFactory = strategy.auctionFactory();
+        AuctionFactory auctionFactory = new AuctionFactory();
 
         vm.prank(management);
-        address newAuction = AuctionFactory(auctionFactory).createNewAuction(
-            _asset,
-            address(strategy),
-            management
-        );
+        address newAuction = auctionFactory.createNewAuction(_asset, address(strategy), management);
 
         Auction auction = Auction(newAuction);
 
         vm.prank(management);
         strategy.setAuction(address(auction));
+        assertTrue(strategy.useAuction());
 
         vm.prank(management);
         auction.enable(address(AAVE));
@@ -175,7 +157,7 @@ contract TestFactory is Setup {
         assertEq(strategy.kickAuction(address(AAVE)), aaveAmount);
         assertEq(AAVE.balanceOf(address(auction)), aaveAmount);
 
-        skip(AuctionFactory(auctionFactory).DEFAULT_AUCTION_LENGTH() / 2);
+        skip(auction.auctionLength() / 2);
 
         uint256 needed = auction.getAmountNeeded(address(AAVE), aaveAmount);
 
@@ -195,7 +177,7 @@ contract TestFactory is Setup {
         uint256 beforePps = strategy.pricePerShare();
 
         vm.prank(keeper);
-        (uint256 profit, ) = strategy.report();
+        (uint256 profit,) = strategy.report();
 
         assertGt(profit, 0);
         assertEq(strategy.totalAssets(), _amount + profit);
@@ -217,15 +199,13 @@ contract TestFactory is Setup {
     function test_factory_deployed_shutdown(uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
 
-        address _asset = address(asset) == address(WETH)
-            ? address(USDC)
-            : address(WETH);
+        address _asset = address(asset) == address(WETH) ? address(USDC) : address(WETH);
         if (_asset == address(USDC)) {
             _amount = 100_000 * 1e6;
         }
 
         vm.prank(management);
-        address newStrategy = factory.newAaveV3Lender(_asset);
+        address newStrategy = factory.newSparkLender(_asset);
 
         IStrategyInterface strategy = IStrategyInterface(newStrategy);
 
@@ -259,25 +239,19 @@ contract TestFactory is Setup {
         vm.prank(user);
         strategy.withdraw(_amount, user, user);
 
-        assertApproxEqRel(
-            ERC20(_asset).balanceOf(user),
-            userBalanceBefore,
-            RELATIVE_APPROX
-        );
+        assertApproxEqRel(ERC20(_asset).balanceOf(user), userBalanceBefore, RELATIVE_APPROX);
     }
 
     function test_factory_deployed_access(uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
 
-        address _asset = address(asset) == address(WETH)
-            ? address(USDC)
-            : address(WETH);
+        address _asset = address(asset) == address(WETH) ? address(USDC) : address(WETH);
         if (_asset == address(USDC)) {
             _amount = 100_000 * 1e6;
         }
 
         vm.prank(management);
-        address newStrategy = factory.newAaveV3Lender(_asset);
+        address newStrategy = factory.newSparkLender(_asset);
 
         IStrategyInterface strategy = IStrategyInterface(newStrategy);
 

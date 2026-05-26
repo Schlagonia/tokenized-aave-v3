@@ -17,10 +17,9 @@ interface IPoolDataProvider {
      * @return liquidityIndex The liquidity index of the reserve
      * @return variableBorrowIndex The variable borrow index of the reserve
      * @return lastUpdateTimestamp The timestamp of the last update of the reserve
-     **/
-    function getReserveData(
-        address asset
-    )
+     *
+     */
+    function getReserveData(address asset)
         external
         view
         returns (
@@ -42,22 +41,15 @@ interface IPoolDataProvider {
      * @notice Returns the total supply of aTokens for a given asset
      * @param asset The address of the underlying asset of the reserve
      * @return The total supply of the aToken
-     **/
-    function getATokenTotalSupply(
-        address asset
-    ) external view returns (uint256);
+     *
+     */
+    function getATokenTotalSupply(address asset) external view returns (uint256);
 
     /**
      * @notice Returns the total debt for a given asset
      * @param asset The address of the underlying asset of the reserve
      * @return The total debt for asset
-     **/
-    function getTotalDebt(address asset) external view returns (uint256);
-
-    /**
-     * @notice Returns the deficit of the reserve
-     * @param asset The address of the underlying asset of the reserve
-     * @return The reserve deficit
+     *
      */
-    function getReserveDeficit(address asset) external view returns (uint256);
+    function getTotalDebt(address asset) external view returns (uint256);
 }

@@ -10,20 +10,10 @@ import {IProtocolDataProvider} from "../interfaces/Aave/V3/IProtocolDataProvider
 import {IReserveInterestRateStrategy} from "../interfaces/Aave/V3/IReserveInterestRateStrategy.sol";
 
 interface IUniswapV2Router02 {
-    function getAmountsOut(
-        uint256 amountIn,
-        address[] calldata path
-    ) external view returns (uint256[] memory amounts);
+    function getAmountsOut(uint256 amountIn, address[] calldata path) external view returns (uint256[] memory amounts);
 }
 
 contract StrategyAprOracle {
-    address internal constant stkAave =
-        address(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
-    address internal constant AAVE =
-        address(0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9);
-
-    uint256 internal constant VIRTUAL_ACC_ACTIVE_MASK = 0xEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF; // prettier-ignore
-
     uint256 internal constant SECONDS_IN_YEAR = 365 days;
 
     address internal immutable WNATIVE;
@@ -54,153 +44,108 @@ contract StrategyAprOracle {
      * @param _delta The difference in debt.
      * @return . The expected apr for the strategy represented as 1e18.
      */
-    function aprAfterDebtChange(
-        address _strategy,
-        int256 _delta
-    ) external view returns (uint256) {
+    function aprAfterDebtChange(address _strategy, int256 _delta) external view returns (uint256) {
         address asset = IStrategyInterface(_strategy).asset();
+        address aToken = IStrategyInterface(_strategy).aToken();
         IPool lendingPool = IPool(IStrategyInterface(_strategy).lendingPool());
-        IProtocolDataProvider protocolDataProvider = IProtocolDataProvider(
-            lendingPool.ADDRESSES_PROVIDER().getPoolDataProvider()
-        );
+        IProtocolDataProvider protocolDataProvider =
+            IProtocolDataProvider(lendingPool.ADDRESSES_PROVIDER().getPoolDataProvider());
 
-        //need to calculate new supplyRate after Deposit (when deposit has not been done yet)
-        uint256 balance = lendingPool.getVirtualUnderlyingBalance(asset);
-
-        (
-            uint256 unbacked,
-            ,
-            ,
-            ,
-            uint256 totalVariableDebt,
-            ,
-            ,
-            ,
-            ,
-            ,
-            ,
-
-        ) = protocolDataProvider.getReserveData(asset);
-
-        (, , , , uint256 reserveFactor, , , , , ) = protocolDataProvider
-            .getReserveConfigurationData(asset);
-
-        DataTypesV3.CalculateInterestRatesParams memory params = DataTypesV3
-            .CalculateInterestRatesParams(
-                unbacked + lendingPool.getReserveDeficit(asset),
-                _delta > 0 ? uint256(_delta) : 0,
-                _delta < 0 ? uint256(-1 * _delta) : 0,
-                totalVariableDebt,
-                reserveFactor,
-                asset,
-                true,
-                balance
-            );
-
-        (uint256 newLiquidityRate, ) = IReserveInterestRateStrategy(
-            lendingPool.getReserveData(asset).interestRateStrategyAddress
-        ).calculateInterestRates(params);
+        (uint256 newLiquidityRate, uint256 totalAToken) =
+            _getNewLiquidityRate(asset, aToken, lendingPool, protocolDataProvider, _delta);
 
         uint256 rewardsRate;
         if (IStrategyInterface(_strategy).claimRewards()) {
-            rewardsRate = getRewardApr(
-                _strategy,
-                asset,
-                uint256(int256(balance + totalVariableDebt) + _delta)
-            );
+            rewardsRate = getRewardApr(_strategy, asset, _applyDebtDelta(totalAToken, _delta));
         }
 
         return newLiquidityRate / 1e9 + rewardsRate; // divided by 1e9 to go from Ray to Wad
     }
 
-    function getRewardApr(
-        address _strategy,
+    function _getNewLiquidityRate(
         address _asset,
-        uint256 _underlyingBalance
-    ) public view returns (uint256) {
-        IAToken aToken = IAToken(IStrategyInterface(_strategy).aToken());
-        IRewardsController rewardsController = IRewardsController(
-            aToken.getIncentivesController()
-        );
+        address _aToken,
+        IPool _lendingPool,
+        IProtocolDataProvider _protocolDataProvider,
+        int256 _delta
+    ) internal view returns (uint256, uint256 totalAToken) {
+        DataTypesV3.CalculateInterestRatesParams memory params;
 
-        address[] memory rewardTokens = rewardsController.getRewardsByAsset(
-            address(aToken)
-        );
+        (
+            params.unbacked,,
+            totalAToken,
+            params.totalStableDebt,
+            params.totalVariableDebt,,,,
+            params.averageStableBorrowRate,,,
+        ) = _protocolDataProvider.getReserveData(_asset);
+
+        (,,,, params.reserveFactor,,,,,) = _protocolDataProvider.getReserveConfigurationData(_asset);
+
+        params.liquidityAdded = _delta > 0 ? uint256(_delta) : 0;
+        params.liquidityTaken = _delta < 0 ? uint256(-1 * _delta) : 0;
+        params.reserve = _asset;
+        params.aToken = _aToken;
+
+        (uint256 newLiquidityRate,,) = IReserveInterestRateStrategy(
+                _lendingPool.getReserveData(_asset).interestRateStrategyAddress
+            ).calculateInterestRates(params);
+
+        return (newLiquidityRate, totalAToken);
+    }
+
+    function getRewardApr(address _strategy, address _asset, uint256 _underlyingBalance) public view returns (uint256) {
+        if (_underlyingBalance == 0) return 0;
+
+        IAToken aToken = IAToken(IStrategyInterface(_strategy).aToken());
+        IRewardsController rewardsController = IRewardsController(aToken.getIncentivesController());
+
+        address[] memory rewardTokens = rewardsController.getRewardsByAsset(address(aToken));
         uint256 i;
         uint256 tokenIncentivesRate;
-        //Passes the total Supply and the corresponding reward token address for each reward token the want has
+        // Passes total supply and the corresponding reward token for each reward token.
         for (i; i < rewardTokens.length; ++i) {
             address rewardToken = rewardTokens[i];
             if (rewardToken == address(0)) return 0;
 
-            // make sure we should be calculating the apr and that the distro period hasn't ended
-            if (
-                block.timestamp <
-                rewardsController.getDistributionEnd(
-                    address(aToken),
-                    rewardToken
-                )
-            ) {
-                uint256 _emissionsPerSecond;
-                (, _emissionsPerSecond, , ) = rewardsController.getRewardsData(
-                    address(aToken),
-                    rewardToken
-                );
-                if (_emissionsPerSecond > 0) {
+            if (block.timestamp < rewardsController.getDistributionEnd(address(aToken), rewardToken)) {
+                uint256 emissionsPerSecond;
+                (, emissionsPerSecond,,) = rewardsController.getRewardsData(address(aToken), rewardToken);
+                if (emissionsPerSecond > 0) {
                     uint256 emissionsInAsset;
-                    // we need to get the market rate from the reward token to want
-                    if (
-                        rewardToken == _asset || rewardToken == address(aToken)
-                    ) {
-                        // no calculation needed if rewarded in want
-                        emissionsInAsset = _emissionsPerSecond;
-                    } else if (rewardToken == address(stkAave)) {
-                        // if the reward token is stkAave we will be selling Aave
-                        emissionsInAsset = _checkPrice(
-                            AAVE,
-                            _asset,
-                            _emissionsPerSecond
-                        );
+                    if (rewardToken == _asset || rewardToken == address(aToken)) {
+                        emissionsInAsset = emissionsPerSecond;
                     } else {
-                        // else just check the price
-                        emissionsInAsset = _checkPrice(
-                            rewardToken,
-                            _asset,
-                            _emissionsPerSecond
-                        ); // amount of emissions in want
+                        emissionsInAsset = _checkPrice(rewardToken, _asset, emissionsPerSecond);
                     }
 
-                    tokenIncentivesRate +=
-                        (emissionsInAsset * SECONDS_IN_YEAR * 1e18) /
-                        _underlyingBalance; // APRs are in 1e18
+                    tokenIncentivesRate += (emissionsInAsset * SECONDS_IN_YEAR * 1e18) / _underlyingBalance;
                 }
             }
         }
-        return (tokenIncentivesRate * 9_500) / 10_000; // 95% of estimated APR to avoid overestimations
+        return (tokenIncentivesRate * 9_500) / 10_000;
     }
 
-    function _checkPrice(
-        address start,
-        address end,
-        uint256 _amount
-    ) internal view returns (uint256) {
+    function _applyDebtDelta(uint256 _underlyingBalance, int256 _delta) internal pure returns (uint256) {
+        if (_delta >= 0) return _underlyingBalance + uint256(_delta);
+
+        uint256 decrease = uint256(-1 * _delta);
+        if (decrease >= _underlyingBalance) return 0;
+        return _underlyingBalance - decrease;
+    }
+
+    function _checkPrice(address start, address end, uint256 _amount) internal view returns (uint256) {
         if (_amount == 0) {
             return 0;
         }
 
-        try router.getAmountsOut(_amount, getTokenOutPath(start, end)) returns (
-            uint256[] memory amounts
-        ) {
+        try router.getAmountsOut(_amount, getTokenOutPath(start, end)) returns (uint256[] memory amounts) {
             return amounts[amounts.length - 1];
         } catch {
             return 0;
         }
     }
 
-    function getTokenOutPath(
-        address _tokenIn,
-        address _tokenOut
-    ) internal view returns (address[] memory _path) {
+    function getTokenOutPath(address _tokenIn, address _tokenOut) internal view returns (address[] memory _path) {
         bool isNative = _tokenIn == WNATIVE || _tokenOut == WNATIVE;
         _path = new address[](isNative ? 2 : 3);
         _path[0] = _tokenIn;

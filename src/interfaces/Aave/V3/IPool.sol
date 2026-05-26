@@ -625,15 +625,6 @@ interface IPool {
     ) external view returns (DataTypesV3.ReserveDataLegacy memory);
 
     /**
-     * @notice Returns the virtual underlying balance of the reserve
-     * @param asset The address of the underlying asset of the reserve
-     * @return The reserve virtual underlying balance
-     */
-    function getVirtualUnderlyingBalance(
-        address asset
-    ) external view returns (uint128);
-
-    /**
      * @notice Validates and finalizes an aToken transfer
      * @dev Only callable by the overlying aToken of the `asset`
      * @param asset The address of the underlying asset of the aToken
@@ -844,30 +835,6 @@ interface IPool {
         address onBehalfOf,
         uint16 referralCode
     ) external;
-
-    /**
-     * @notice It covers the deficit of a specified reserve by burning:
-     * - the equivalent aToken `amount` for assets with virtual accounting enabled
-     * - the equivalent `amount` of underlying for assets with virtual accounting disabled (e.g. GHO)
-     * @dev The deficit of a reserve can occur due to situations where borrowed assets are not repaid, leading to bad debt.
-     * @param asset The address of the underlying asset to cover the deficit.
-     * @param amount The amount to be covered, in aToken or underlying on non-virtual accounted assets
-     */
-    function eliminateReserveDeficit(address asset, uint256 amount) external;
-
-    /**
-     * @notice Returns the current deficit of a reserve.
-     * @param asset The address of the underlying asset of the reserve
-     * @return The current deficit of the reserve
-     */
-    function getReserveDeficit(address asset) external view returns (uint256);
-
-    /**
-     * @notice Returns the aToken address of a reserve.
-     * @param asset The address of the underlying asset of the reserve
-     * @return The address of the aToken
-     */
-    function getReserveAToken(address asset) external view returns (address);
 
     /**
      * @notice Returns the variableDebtToken address of a reserve.

@@ -291,11 +291,12 @@ library DataTypesV3 {
         uint256 unbacked;
         uint256 liquidityAdded;
         uint256 liquidityTaken;
-        uint256 totalDebt;
+        uint256 totalStableDebt;
+        uint256 totalVariableDebt;
+        uint256 averageStableBorrowRate;
         uint256 reserveFactor;
         address reserve;
-        bool usingVirtualBalance;
-        uint256 virtualUnderlyingBalance;
+        address aToken;
     }
 
     struct InitReserveParams {
