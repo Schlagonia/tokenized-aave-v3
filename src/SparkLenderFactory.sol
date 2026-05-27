@@ -66,9 +66,9 @@ contract SparkLenderFactory {
 
         newStrategy.setEmergencyAdmin(sms);
 
-        newStrategy.setPerformanceFee(500);
+        newStrategy.setPerformanceFee(0);
 
-        newStrategy.setProfitMaxUnlockTime(60 * 60 * 24 * 3);
+        newStrategy.setProfitMaxUnlockTime(0);
 
         emit NewSparkLender(address(newStrategy), _asset);
 

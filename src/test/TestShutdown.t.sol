@@ -39,19 +39,13 @@ contract TestShutdown is Setup {
 
         assertEq(strategy.totalAssets(), _amount);
 
-        skip(strategy.profitMaxUnlockTime() - 1);
-
         // withdrawal
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
         assertEq(strategy.totalAssets(), 0);
 
-        assertApproxEqRel(
-            asset.balanceOf(user),
-            userBalanceBefore,
-            RELATIVE_APPROX
-        );
+        assertApproxEqRel(asset.balanceOf(user), userBalanceBefore, RELATIVE_APPROX);
     }
 
     function test_shutdown_report_doesnt_reinvest(uint256 _amount) public {
@@ -88,13 +82,7 @@ contract TestShutdown is Setup {
         assertGt(profit, 0);
         assertEq(loss, 0);
 
-        uint256 performanceFees = (profit * strategy.performanceFee()) /
-            MAX_BPS;
-
         assertEq(strategy.totalAssets(), _amount + profit);
-
-        // needed for profits to unlock
-        skip(strategy.profitMaxUnlockTime() - 1);
 
         // withdrawal
         vm.prank(user);
@@ -135,10 +123,6 @@ contract TestShutdown is Setup {
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        assertGe(
-            asset.balanceOf(user),
-            balanceBefore + _amount,
-            "!final balance"
-        );
+        assertGe(asset.balanceOf(user), balanceBefore + _amount, "!final balance");
     }
 }

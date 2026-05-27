@@ -62,9 +62,6 @@ contract TestOperation is Setup {
 
         assertEq(strategy.totalAssets(), _amount + profit);
 
-        // needed for profits to unlock
-        skip(strategy.profitMaxUnlockTime() - 1);
-
         assertEq(strategy.totalAssets(), _amount + profit);
         assertGt(strategy.pricePerShare(), beforePps);
 
@@ -106,9 +103,6 @@ contract TestOperation is Setup {
         assertEq(loss, 0);
 
         assertEq(strategy.totalAssets(), _amount + profit);
-
-        // needed for profits to unlock
-        skip(strategy.profitMaxUnlockTime());
 
         assertEq(strategy.totalAssets(), _amount + profit);
         assertGt(strategy.pricePerShare(), beforePps);
@@ -227,9 +221,6 @@ contract TestOperation is Setup {
 
         (trigger,) = strategy.tendTrigger();
         assertFalse(trigger);
-
-        // needed for profits to unlock
-        skip(strategy.profitMaxUnlockTime() - 1);
 
         (trigger,) = strategy.tendTrigger();
         assertFalse(trigger);

@@ -60,10 +60,7 @@ contract Setup is ExtendedTest {
 
         // Deploy strategy
         strategy = IStrategyInterface(factory.newSparkLender(address(asset)));
-        vm.prank(management);
-        strategy.acceptManagement();
-        vm.prank(management);
-        strategy.setPerformanceFee(1000); // 10% performance fee
+        acceptManagementAndAllowUser(strategy);
 
         // Deploy oracle
         //oracle = new StrategyAprOracle();
@@ -71,11 +68,17 @@ contract Setup is ExtendedTest {
 
     function createStrategy(address _asset, uint256 _performanceFee) public returns (IStrategyInterface) {
         IStrategyInterface newStrategy = IStrategyInterface(factory.newSparkLender(_asset));
-        vm.prank(management);
-        newStrategy.acceptManagement();
+        acceptManagementAndAllowUser(newStrategy);
         vm.prank(management);
         newStrategy.setPerformanceFee(uint16(_performanceFee));
         return newStrategy;
+    }
+
+    function acceptManagementAndAllowUser(IStrategyInterface _strategy) public {
+        vm.startPrank(management);
+        _strategy.acceptManagement();
+        _strategy.setAllowed(user, true);
+        vm.stopPrank();
     }
 
     function deposit(IStrategyInterface _strategy, ERC20 _asset, uint256 _amount, address _account) public {

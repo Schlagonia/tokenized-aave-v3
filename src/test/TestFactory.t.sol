@@ -14,6 +14,17 @@ contract TestFactory is Setup {
         super.setUp();
     }
 
+    function deployFactoryStrategy(address _asset) internal returns (IStrategyInterface _strategy) {
+        vm.prank(management);
+        _strategy = IStrategyInterface(factory.newSparkLender(_asset));
+
+        assertEq(_strategy.performanceFee(), 0);
+        assertEq(_strategy.profitMaxUnlockTime(), 0);
+        assertFalse(_strategy.open());
+
+        acceptManagementAndAllowUser(_strategy);
+    }
+
     function test_factory_deployed_operation(uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
 
@@ -22,13 +33,7 @@ contract TestFactory is Setup {
             _amount = 100_000 * 1e6;
         }
 
-        vm.prank(management);
-        address newStrategy = factory.newSparkLender(_asset);
-
-        IStrategyInterface strategy = IStrategyInterface(newStrategy);
-
-        vm.prank(management);
-        strategy.acceptManagement();
+        IStrategyInterface strategy = deployFactoryStrategy(_asset);
 
         deal(_asset, user, _amount);
 
@@ -59,13 +64,7 @@ contract TestFactory is Setup {
             _amount = 100_000 * 1e6;
         }
 
-        vm.prank(management);
-        address newStrategy = factory.newSparkLender(_asset);
-
-        IStrategyInterface strategy = IStrategyInterface(newStrategy);
-
-        vm.prank(management);
-        strategy.acceptManagement();
+        IStrategyInterface strategy = deployFactoryStrategy(_asset);
 
         vm.prank(management);
         strategy.setUniFees(address(AAVE), _asset, aaveFee);
@@ -93,8 +92,6 @@ contract TestFactory is Setup {
 
         assertGe(strategy.totalAssets(), _amount + profit);
 
-        skip(strategy.profitMaxUnlockTime() - 1);
-
         assertGe(strategy.totalAssets(), _amount);
         assertGt(strategy.pricePerShare(), beforePps);
 
@@ -112,13 +109,7 @@ contract TestFactory is Setup {
             _amount = 100_000 * 1e6;
         }
 
-        vm.prank(management);
-        address newStrategy = factory.newSparkLender(_asset);
-
-        IStrategyInterface strategy = IStrategyInterface(newStrategy);
-
-        vm.prank(management);
-        strategy.acceptManagement();
+        IStrategyInterface strategy = deployFactoryStrategy(_asset);
 
         deal(_asset, user, _amount);
 
@@ -180,6 +171,9 @@ contract TestFactory is Setup {
 
         uint256 beforePps = strategy.pricePerShare();
 
+        vm.prank(management);
+        strategy.setDoHealthCheck(false);
+
         vm.prank(keeper);
         (uint256 profit,) = strategy.report();
 
@@ -188,8 +182,6 @@ contract TestFactory is Setup {
 
         assertEq(AAVE.balanceOf(address(strategy)), 0);
         assertGt(ERC20(_asset).balanceOf(address(strategy)), 0);
-
-        skip(strategy.profitMaxUnlockTime() - 1);
 
         assertEq(strategy.totalAssets(), _amount + profit);
         assertGt(strategy.pricePerShare(), beforePps);
@@ -208,13 +200,7 @@ contract TestFactory is Setup {
             _amount = 100_000 * 1e6;
         }
 
-        vm.prank(management);
-        address newStrategy = factory.newSparkLender(_asset);
-
-        IStrategyInterface strategy = IStrategyInterface(newStrategy);
-
-        vm.prank(management);
-        strategy.acceptManagement();
+        IStrategyInterface strategy = deployFactoryStrategy(_asset);
 
         deal(_asset, user, _amount);
 
@@ -254,13 +240,7 @@ contract TestFactory is Setup {
             _amount = 100_000 * 1e6;
         }
 
-        vm.prank(management);
-        address newStrategy = factory.newSparkLender(_asset);
-
-        IStrategyInterface strategy = IStrategyInterface(newStrategy);
-
-        vm.prank(management);
-        strategy.acceptManagement();
+        IStrategyInterface strategy = deployFactoryStrategy(_asset);
 
         deal(_asset, user, _amount);
 

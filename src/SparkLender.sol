@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.18;
 
-import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
+import {BaseHealthCheck, ERC20} from "@periphery/Bases/HealthCheck/BaseHealthCheck.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -15,7 +15,7 @@ import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
 import {AuctionSwapper} from "@periphery/swappers/AuctionSwapper.sol";
 import {Auction} from "@periphery/Auctions/Auction.sol";
 
-contract SparkLender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
+contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
     using SafeERC20 for ERC20;
 
     // To get the Supply cap of an asset.
@@ -36,7 +36,7 @@ contract SparkLender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     bool public claimRewards;
 
     constructor(address _asset, string memory _name, address _lendingPool, address _router, address _base)
-        BaseStrategy(_asset, _name)
+        BaseHealthCheck(_asset, _name)
     {
         lendingPool = IPool(_lendingPool);
 
@@ -209,14 +209,10 @@ contract SparkLender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @param . The address that is depositing into the strategy.
      * @return . The available amount the `_owner` can deposit in terms of `asset`
      */
-    function availableDepositLimit(
-        address /*_owner*/
-    )
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function availableDepositLimit(address _owner) public view override returns (uint256) {
+        uint256 baseLimit = super.availableDepositLimit(_owner);
+        if (baseLimit == 0) return 0;
+
         // Get the data configuration bitmap.
         uint256 _data = lendingPool.getConfiguration(address(asset)).data;
 
@@ -226,7 +222,7 @@ contract SparkLender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         uint256 supplyCap = _getSupplyCap(_data);
 
         // If we have no supply cap.
-        if (supplyCap == 0) return type(uint256).max;
+        if (supplyCap == 0) return baseLimit;
 
         // Supply plus any already idle funds.
         uint256 supply = aToken.totalSupply() + asset.balanceOf(address(this));
@@ -236,7 +232,7 @@ contract SparkLender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
 
         // Return the remaining room.
         unchecked {
-            return supplyCap - supply;
+            return Math.min(baseLimit, supplyCap - supply);
         }
     }
 
