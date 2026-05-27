@@ -6,13 +6,13 @@ import {IAuctionSwapper} from "@periphery/swappers/interfaces/IAuctionSwapper.so
 import {IUniswapV3Swapper} from "@periphery/swappers/interfaces/IUniswapV3Swapper.sol";
 
 interface IStrategyInterface is IBaseHealthCheck, IUniswapV3Swapper, IAuctionSwapper {
-    function lendingPool() external view returns (address);
+    function LENDING_POOL() external view returns (address);
 
-    function aToken() external view returns (address);
+    function A_TOKEN() external view returns (address);
 
     function claimRewards() external view returns (bool);
 
-    function rewardsController() external view returns (address);
+    function REWARDS_CONTROLLER() external view returns (address);
 
     function setUniFees(address _token0, address _token1, uint24 _fee) external;
 

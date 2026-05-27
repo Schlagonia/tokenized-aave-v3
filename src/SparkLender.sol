@@ -21,16 +21,16 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
     // To get the Supply cap of an asset.
     uint256 internal constant SUPPLY_CAP_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFF000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFF; // prettier-ignore
     uint256 internal constant SUPPLY_CAP_START_BIT_POSITION = 116;
-    uint256 internal immutable decimals;
+    uint256 internal immutable DECIMALS;
 
     // The pool to deposit and withdraw through.
-    IPool public immutable lendingPool;
+    IPool public immutable LENDING_POOL;
 
     // The a Token specific rewards contract for claiming rewards.
-    IRewardsController public immutable rewardsController;
+    IRewardsController public immutable REWARDS_CONTROLLER;
 
     // The token that we get in return for deposits.
-    IAToken public immutable aToken;
+    IAToken public immutable A_TOKEN;
 
     // Bool to decide to try and claim rewards. Defaults to False.
     bool public claimRewards;
@@ -38,19 +38,19 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
     constructor(address _asset, string memory _name, address _lendingPool, address _router, address _base)
         BaseHealthCheck(_asset, _name)
     {
-        lendingPool = IPool(_lendingPool);
+        LENDING_POOL = IPool(_lendingPool);
 
         // Set the aToken based on the asset we are using.
-        aToken = IAToken(lendingPool.getReserveData(_asset).aTokenAddress);
+        A_TOKEN = IAToken(LENDING_POOL.getReserveData(_asset).aTokenAddress);
 
         // Get aToken decimals for supply caps.
-        decimals = ERC20(address(aToken)).decimals();
+        DECIMALS = ERC20(address(A_TOKEN)).decimals();
 
         // Set the rewards controller
-        rewardsController = aToken.getIncentivesController();
+        REWARDS_CONTROLLER = A_TOKEN.getIncentivesController();
 
         // Make approve the lending pool for cheaper deposits.
-        asset.safeApprove(address(lendingPool), type(uint256).max);
+        asset.safeApprove(address(LENDING_POOL), type(uint256).max);
 
         // Set uni swapper values.
         router = _router;
@@ -73,7 +73,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
      * to deposit in the yield source.
      */
     function _deployFunds(uint256 _amount) internal override {
-        lendingPool.supply(address(asset), _amount, address(this), 0);
+        LENDING_POOL.supply(address(asset), _amount, address(this), 0);
     }
 
     /**
@@ -103,7 +103,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
      * @param _amount, The amount of 'asset' to be freed.
      */
     function _freeFunds(uint256 _amount) internal override {
-        lendingPool.withdraw(address(asset), Math.min(aToken.balanceOf(address(this)), _amount), address(this));
+        LENDING_POOL.withdraw(address(asset), Math.min(A_TOKEN.balanceOf(address(this)), _amount), address(this));
     }
 
     /**
@@ -134,7 +134,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
             _claimAndSellRewards();
         }
 
-        _totalAssets = aToken.balanceOf(address(this)) + balanceOfAsset();
+        _totalAssets = A_TOKEN.balanceOf(address(this)) + balanceOfAsset();
     }
 
     function balanceOfAsset() public view returns (uint256) {
@@ -146,8 +146,8 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
      */
     function _claimAndSellRewards() internal {
         address[] memory assets = new address[](1);
-        assets[0] = address(aToken);
-        (address[] memory rewardsList,) = rewardsController.claimAllRewardsToSelf(assets);
+        assets[0] = address(A_TOKEN);
+        (address[] memory rewardsList,) = REWARDS_CONTROLLER.claimAllRewardsToSelf(assets);
 
         // If using the Auction contract we are done.
         if (useAuction) return;
@@ -157,7 +157,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
 
-            if (token == address(asset) || token == address(aToken)) {
+            if (token == address(asset) || token == address(A_TOKEN)) {
                 continue;
             }
 
@@ -195,7 +195,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
         if (baseLimit == 0) return 0;
 
         // Get the data configuration bitmap.
-        uint256 _data = lendingPool.getConfiguration(address(asset)).data;
+        uint256 _data = LENDING_POOL.getConfiguration(address(asset)).data;
 
         // Cannot deposit when paused or frozen.
         if (_isPaused(_data) || _isFrozen(_data)) return 0;
@@ -206,7 +206,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
         if (supplyCap == 0) return baseLimit;
 
         // Supply plus any already idle funds.
-        uint256 supply = aToken.totalSupply() + asset.balanceOf(address(this));
+        uint256 supply = A_TOKEN.totalSupply() + asset.balanceOf(address(this));
 
         // If we already hit the cap.
         if (supplyCap <= supply) return 0;
@@ -222,7 +222,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
      * @return The supply cap
      */
     function getSupplyCap() public view returns (uint256) {
-        return _getSupplyCap(lendingPool.getConfiguration(address(asset)).data);
+        return _getSupplyCap(LENDING_POOL.getConfiguration(address(asset)).data);
     }
 
     /**
@@ -232,7 +232,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
         // Get out the supply cap for the asset.
         uint256 cap = (_data & ~SUPPLY_CAP_MASK) >> SUPPLY_CAP_START_BIT_POSITION;
         // Adjust to the correct decimals.
-        return cap * (10 ** decimals);
+        return cap * (10 ** DECIMALS);
     }
 
     /**
@@ -261,7 +261,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
      * @dev Gets the liquid balance that can be withdrawn from the pool
      */
     function _getLiquidity() internal view returns (uint256) {
-        return asset.balanceOf(address(aToken));
+        return asset.balanceOf(address(A_TOKEN));
     }
 
     /**
@@ -293,7 +293,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
         uint256 liquidity;
 
         // Cannot withdraw from the pool when paused.
-        if (!_isPaused(lendingPool.getConfiguration(address(asset)).data)) {
+        if (!_isPaused(LENDING_POOL.getConfiguration(address(asset)).data)) {
             liquidity = _getLiquidity();
         }
         return balanceOfAsset() + liquidity;
@@ -348,7 +348,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
     function protectedTokens() public view virtual override returns (address[] memory) {
         address[] memory tokens = new address[](2);
         tokens[0] = address(asset);
-        tokens[1] = address(aToken);
+        tokens[1] = address(A_TOKEN);
         return tokens;
     }
 

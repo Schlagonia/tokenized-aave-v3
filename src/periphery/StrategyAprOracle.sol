@@ -18,11 +18,11 @@ contract StrategyAprOracle {
 
     address internal immutable WNATIVE;
 
-    IUniswapV2Router02 public immutable router;
+    IUniswapV2Router02 public immutable ROUTER;
 
     constructor(address _wNative, address _router) {
         WNATIVE = _wNative;
-        router = IUniswapV2Router02(_router);
+        ROUTER = IUniswapV2Router02(_router);
     }
 
     /**
@@ -46,8 +46,8 @@ contract StrategyAprOracle {
      */
     function aprAfterDebtChange(address _strategy, int256 _delta) external view returns (uint256) {
         address asset = IStrategyInterface(_strategy).asset();
-        address aToken = IStrategyInterface(_strategy).aToken();
-        IPool lendingPool = IPool(IStrategyInterface(_strategy).lendingPool());
+        address aToken = IStrategyInterface(_strategy).A_TOKEN();
+        IPool lendingPool = IPool(IStrategyInterface(_strategy).LENDING_POOL());
         IProtocolDataProvider protocolDataProvider =
             IProtocolDataProvider(lendingPool.ADDRESSES_PROVIDER().getPoolDataProvider());
 
@@ -96,7 +96,7 @@ contract StrategyAprOracle {
     function getRewardApr(address _strategy, address _asset, uint256 _underlyingBalance) public view returns (uint256) {
         if (_underlyingBalance == 0) return 0;
 
-        IAToken aToken = IAToken(IStrategyInterface(_strategy).aToken());
+        IAToken aToken = IAToken(IStrategyInterface(_strategy).A_TOKEN());
         IRewardsController rewardsController = IRewardsController(aToken.getIncentivesController());
 
         address[] memory rewardTokens = rewardsController.getRewardsByAsset(address(aToken));
@@ -138,7 +138,7 @@ contract StrategyAprOracle {
             return 0;
         }
 
-        try router.getAmountsOut(_amount, getTokenOutPath(start, end)) returns (uint256[] memory amounts) {
+        try ROUTER.getAmountsOut(_amount, getTokenOutPath(start, end)) returns (uint256[] memory amounts) {
             return amounts[amounts.length - 1];
         } catch {
             return 0;

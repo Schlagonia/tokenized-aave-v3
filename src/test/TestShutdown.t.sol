@@ -137,7 +137,7 @@ contract TestShutdown is Setup {
         vm.stopPrank();
 
         uint256 liquidAmount = _amount / 4;
-        deal(address(asset), strategy.aToken(), liquidAmount);
+        deal(address(asset), strategy.A_TOKEN(), liquidAmount);
 
         assertEq(strategy.availableWithdrawLimit(user), liquidAmount);
         assertEq(asset.balanceOf(address(strategy)), 0);
@@ -149,8 +149,8 @@ contract TestShutdown is Setup {
         strategy.emergencyWithdraw(type(uint256).max);
 
         assertEq(asset.balanceOf(address(strategy)), liquidAmount);
-        assertEq(asset.balanceOf(strategy.aToken()), 0);
-        assertGt(ERC20(strategy.aToken()).balanceOf(address(strategy)), 0);
+        assertEq(asset.balanceOf(strategy.A_TOKEN()), 0);
+        assertGt(ERC20(strategy.A_TOKEN()).balanceOf(address(strategy)), 0);
         assertEq(strategy.totalAssets(), _amount);
     }
 }

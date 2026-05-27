@@ -135,7 +135,7 @@ contract TestOperation is Setup {
 
         assertEq(strategy.totalAssets(), _amount);
 
-        address aToken = strategy.aToken();
+        address aToken = strategy.A_TOKEN();
 
         uint256 limit = strategy.availableWithdrawLimit(user);
 
@@ -176,7 +176,7 @@ contract TestOperation is Setup {
 
         uint256 toLeave = _amount / 10;
 
-        deal(address(asset), strategy.aToken(), toLeave);
+        deal(address(asset), strategy.A_TOKEN(), toLeave);
 
         assertEq(strategy.availableWithdrawLimit(user), toLeave);
         assertEq(strategy.maxWithdraw(user), toLeave);
@@ -186,7 +186,7 @@ contract TestOperation is Setup {
         vm.prank(user);
         strategy.redeem(maxRedeem, user, user);
 
-        deal(address(asset), strategy.aToken(), 0);
+        deal(address(asset), strategy.A_TOKEN(), 0);
 
         assertEq(strategy.maxRedeem(user), 0);
 

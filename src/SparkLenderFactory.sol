@@ -10,11 +10,11 @@ contract SparkLenderFactory {
 
     event NewSparkLender(address indexed strategy, address indexed asset);
 
-    address public immutable sms;
+    address public immutable SMS;
 
-    address public immutable lendingPool;
-    address public immutable router;
-    address public immutable base;
+    address public immutable LENDING_POOL;
+    address public immutable ROUTER;
+    address public immutable BASE;
 
     address public management;
     address public performanceFeeRecipient;
@@ -35,10 +35,10 @@ contract SparkLenderFactory {
         management = _management;
         performanceFeeRecipient = _performanceFeeRecipient;
         keeper = _keeper;
-        sms = _sms;
-        lendingPool = _lendingPool;
-        router = _router;
-        base = _base;
+        SMS = _sms;
+        LENDING_POOL = _lendingPool;
+        ROUTER = _router;
+        BASE = _base;
     }
 
     /**
@@ -56,7 +56,7 @@ contract SparkLenderFactory {
         // We need to use the custom interface with the
         // tokenized strategies available setters.
         IStrategyInterface newStrategy =
-            IStrategyInterface(address(new SparkLender(_asset, _name, lendingPool, router, base)));
+            IStrategyInterface(address(new SparkLender(_asset, _name, LENDING_POOL, ROUTER, BASE)));
 
         newStrategy.setPerformanceFeeRecipient(performanceFeeRecipient);
 
@@ -64,7 +64,7 @@ contract SparkLenderFactory {
 
         newStrategy.setPendingManagement(management);
 
-        newStrategy.setEmergencyAdmin(sms);
+        newStrategy.setEmergencyAdmin(SMS);
 
         newStrategy.setPerformanceFee(0);
 
