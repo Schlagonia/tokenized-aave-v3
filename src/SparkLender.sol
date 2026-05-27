@@ -43,9 +43,6 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
         // Set the aToken based on the asset we are using.
         aToken = IAToken(lendingPool.getReserveData(_asset).aTokenAddress);
 
-        // Make sure its a real token.
-        require(address(aToken) != address(0), "!aToken");
-
         // Get aToken decimals for supply caps.
         decimals = ERC20(address(aToken)).decimals();
 
@@ -58,22 +55,6 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
         // Set uni swapper values.
         router = _router;
         base = _base;
-    }
-
-    /**
-     * @notice Set the uni fees for swaps.
-     * @dev External function available to management to set
-     * the fees used in the `UniswapV3Swapper.
-     *
-     * Any incentivized tokens will need a fee to be set for each
-     * reward token that it wishes to swap on reports.
-     *
-     * @param _token0 The first token of the pair.
-     * @param _token1 The second token of the pair.
-     * @param _fee The fee to be used for the pair.
-     */
-    function setUniFees(address _token0, address _token1, uint24 _fee) external onlyManagement {
-        _setUniFees(_token0, _token1, _fee);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -259,7 +240,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
      */
     function _isPaused(uint256 _data) internal pure returns (bool) {
         // Create a mask with only the 60th bit set
-        uint256 mask = 1 << 60; // Bitwise left shift by 59 positions
+        uint256 mask = 1 << 60; // Bitwise left shift by 60 positions
 
         // Perform bitwise AND operation to check if the 60th bit is 0.
         return (_data & mask) != 0;
@@ -270,7 +251,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
      */
     function _isFrozen(uint256 _data) internal pure returns (bool) {
         // Create a mask with only the 57th bit set
-        uint256 mask = 1 << 57; // Bitwise left shift by 56 positions
+        uint256 mask = 1 << 57; // Bitwise left shift by 57 positions
 
         // Perform bitwise AND operation to check if the 57th bit 0.
         return (_data & mask) != 0;
@@ -320,6 +301,26 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
 
     function setMinAmountToSell(address _token, uint256 _amount) external onlyManagement {
         _setMinAmountToSell(_token, _amount);
+    }
+
+    /**
+     * @notice Set the uni fees for swaps.
+     * @dev External function available to management to set
+     * the fees used in the `UniswapV3Swapper.
+     *
+     * Any incentivized tokens will need a fee to be set for each
+     * reward token that it wishes to swap on reports.
+     *
+     * @param _token0 The first token of the pair.
+     * @param _token1 The second token of the pair.
+     * @param _fee The fee to be used for the pair.
+     */
+    function setUniFees(address _token0, address _token1, uint24 _fee) external onlyManagement {
+        _setUniFees(_token0, _token1, _fee);
+    }
+
+    function setBase(address _base) external onlyManagement {
+        base = _base;
     }
 
     /**
@@ -380,6 +381,6 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
      * @param _amount The amount of asset to attempt to free.
      */
     function _emergencyWithdraw(uint256 _amount) internal override {
-        _freeFunds(_amount);
+        _freeFunds(Math.min(_getLiquidity(), _amount));
     }
 }

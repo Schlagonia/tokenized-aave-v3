@@ -125,4 +125,32 @@ contract TestShutdown is Setup {
 
         assertGe(asset.balanceOf(user), balanceBefore + _amount, "!final balance");
     }
+
+    function test_emergencyWithdraw_maxUint_limited_by_liquidity(uint256 _amount) public {
+        _amount = bound(_amount, minFuzzAmount * 10, maxFuzzAmount);
+
+        deal(address(asset), user, _amount);
+
+        vm.startPrank(user);
+        asset.approve(address(strategy), _amount);
+        strategy.deposit(_amount, user);
+        vm.stopPrank();
+
+        uint256 liquidAmount = _amount / 4;
+        deal(address(asset), strategy.aToken(), liquidAmount);
+
+        assertEq(strategy.availableWithdrawLimit(user), liquidAmount);
+        assertEq(asset.balanceOf(address(strategy)), 0);
+
+        vm.prank(management);
+        strategy.shutdownStrategy();
+
+        vm.prank(management);
+        strategy.emergencyWithdraw(type(uint256).max);
+
+        assertEq(asset.balanceOf(address(strategy)), liquidAmount);
+        assertEq(asset.balanceOf(strategy.aToken()), 0);
+        assertGt(ERC20(strategy.aToken()).balanceOf(address(strategy)), 0);
+        assertEq(strategy.totalAssets(), _amount);
+    }
 }
