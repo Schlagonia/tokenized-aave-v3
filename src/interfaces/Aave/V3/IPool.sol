@@ -19,11 +19,7 @@ interface IPool {
      * @param referralCode The referral code used
      */
     event MintUnbacked(
-        address indexed reserve,
-        address user,
-        address indexed onBehalfOf,
-        uint256 amount,
-        uint16 indexed referralCode
+        address indexed reserve, address user, address indexed onBehalfOf, uint256 amount, uint16 indexed referralCode
     );
 
     /**
@@ -33,12 +29,7 @@ interface IPool {
      * @param amount The amount added as backing
      * @param fee The amount paid in fees
      */
-    event BackUnbacked(
-        address indexed reserve,
-        address indexed backer,
-        uint256 amount,
-        uint256 fee
-    );
+    event BackUnbacked(address indexed reserve, address indexed backer, uint256 amount, uint256 fee);
 
     /**
      * @dev Emitted on supply()
@@ -49,11 +40,7 @@ interface IPool {
      * @param referralCode The referral code used
      */
     event Supply(
-        address indexed reserve,
-        address user,
-        address indexed onBehalfOf,
-        uint256 amount,
-        uint16 indexed referralCode
+        address indexed reserve, address user, address indexed onBehalfOf, uint256 amount, uint16 indexed referralCode
     );
 
     /**
@@ -63,12 +50,7 @@ interface IPool {
      * @param to The address that will receive the underlying
      * @param amount The amount to be withdrawn
      */
-    event Withdraw(
-        address indexed reserve,
-        address indexed user,
-        address indexed to,
-        uint256 amount
-    );
+    event Withdraw(address indexed reserve, address indexed user, address indexed to, uint256 amount);
 
     /**
      * @dev Emitted on borrow() and flashLoan() when debt needs to be opened
@@ -100,11 +82,7 @@ interface IPool {
      * @param useATokens True if the repayment is done using aTokens, `false` if done with underlying asset directly
      */
     event Repay(
-        address indexed reserve,
-        address indexed user,
-        address indexed repayer,
-        uint256 amount,
-        bool useATokens
+        address indexed reserve, address indexed user, address indexed repayer, uint256 amount, bool useATokens
     );
 
     /**
@@ -112,10 +90,7 @@ interface IPool {
      * @param asset The address of the underlying asset of the reserve
      * @param totalDebt The total isolation mode debt for the reserve
      */
-    event IsolationModeTotalDebtUpdated(
-        address indexed asset,
-        uint256 totalDebt
-    );
+    event IsolationModeTotalDebtUpdated(address indexed asset, uint256 totalDebt);
 
     /**
      * @dev Emitted when the user selects a certain asset category for eMode
@@ -129,20 +104,14 @@ interface IPool {
      * @param reserve The address of the underlying asset of the reserve
      * @param user The address of the user enabling the usage as collateral
      */
-    event ReserveUsedAsCollateralEnabled(
-        address indexed reserve,
-        address indexed user
-    );
+    event ReserveUsedAsCollateralEnabled(address indexed reserve, address indexed user);
 
     /**
      * @dev Emitted on setUserUseReserveAsCollateral()
      * @param reserve The address of the underlying asset of the reserve
      * @param user The address of the user enabling the usage as collateral
      */
-    event ReserveUsedAsCollateralDisabled(
-        address indexed reserve,
-        address indexed user
-    );
+    event ReserveUsedAsCollateralDisabled(address indexed reserve, address indexed user);
 
     /**
      * @dev Emitted on flashLoan()
@@ -210,11 +179,7 @@ interface IPool {
      * @param caller The caller that triggered the DeficitCovered event
      * @param amountCovered The amount of deficit covered
      */
-    event DeficitCovered(
-        address indexed reserve,
-        address caller,
-        uint256 amountCovered
-    );
+    event DeficitCovered(address indexed reserve, address caller, uint256 amountCovered);
 
     /**
      * @dev Emitted when the protocol treasury receives minted aTokens from the accrued interest.
@@ -229,11 +194,7 @@ interface IPool {
      * @param debtAsset The address of the underlying borrowed asset to be burned
      * @param amountCreated The amount of deficit created
      */
-    event DeficitCreated(
-        address indexed user,
-        address indexed debtAsset,
-        uint256 amountCreated
-    );
+    event DeficitCreated(address indexed user, address indexed debtAsset, uint256 amountCreated);
 
     /**
      * @notice Mints an `amount` of aTokens to the `onBehalfOf`
@@ -243,12 +204,7 @@ interface IPool {
      * @param referralCode Code used to register the integrator originating the operation, for potential rewards.
      *   0 if the action is executed directly by the user, without any middle-man
      */
-    function mintUnbacked(
-        address asset,
-        uint256 amount,
-        address onBehalfOf,
-        uint16 referralCode
-    ) external;
+    function mintUnbacked(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
 
     /**
      * @notice Back the current unbacked underlying with `amount` and pay `fee`.
@@ -257,11 +213,7 @@ interface IPool {
      * @param fee The amount paid in fees
      * @return The backed amount
      */
-    function backUnbacked(
-        address asset,
-        uint256 amount,
-        uint256 fee
-    ) external returns (uint256);
+    function backUnbacked(address asset, uint256 amount, uint256 fee) external returns (uint256);
 
     /**
      * @notice Supplies an `amount` of underlying asset into the reserve, receiving in return overlying aTokens.
@@ -274,12 +226,7 @@ interface IPool {
      * @param referralCode Code used to register the integrator originating the operation, for potential rewards.
      *   0 if the action is executed directly by the user, without any middle-man
      */
-    function supply(
-        address asset,
-        uint256 amount,
-        address onBehalfOf,
-        uint16 referralCode
-    ) external;
+    function supply(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
 
     /**
      * @notice Supply with transfer approval of asset to be supplied done via permit function
@@ -318,11 +265,7 @@ interface IPool {
      *   different wallet
      * @return The final amount withdrawn
      */
-    function withdraw(
-        address asset,
-        uint256 amount,
-        address to
-    ) external returns (uint256);
+    function withdraw(address asset, uint256 amount, address to) external returns (uint256);
 
     /**
      * @notice Allows users to borrow a specific `amount` of the reserve underlying asset, provided that the borrower
@@ -338,13 +281,8 @@ interface IPool {
      * calling the function if he wants to borrow against his own collateral, or the address of the credit delegator
      * if he has been given credit delegation allowance
      */
-    function borrow(
-        address asset,
-        uint256 amount,
-        uint256 interestRateMode,
-        uint16 referralCode,
-        address onBehalfOf
-    ) external;
+    function borrow(address asset, uint256 amount, uint256 interestRateMode, uint16 referralCode, address onBehalfOf)
+        external;
 
     /**
      * @notice Repays a borrowed `amount` on a specific reserve, burning the equivalent debt tokens owned
@@ -358,12 +296,9 @@ interface IPool {
      * other borrower whose debt should be removed
      * @return The final amount repaid
      */
-    function repay(
-        address asset,
-        uint256 amount,
-        uint256 interestRateMode,
-        address onBehalfOf
-    ) external returns (uint256);
+    function repay(address asset, uint256 amount, uint256 interestRateMode, address onBehalfOf)
+        external
+        returns (uint256);
 
     /**
      * @notice Repay with transfer approval of asset to be repaid done via permit function
@@ -404,21 +339,14 @@ interface IPool {
      * @param interestRateMode DEPRECATED in v3.2.0
      * @return The final amount repaid
      */
-    function repayWithATokens(
-        address asset,
-        uint256 amount,
-        uint256 interestRateMode
-    ) external returns (uint256);
+    function repayWithATokens(address asset, uint256 amount, uint256 interestRateMode) external returns (uint256);
 
     /**
      * @notice Allows suppliers to enable/disable a specific supplied asset as collateral
      * @param asset The address of the underlying asset supplied
      * @param useAsCollateral True if the user wants to use the supply as collateral, false otherwise
      */
-    function setUserUseReserveAsCollateral(
-        address asset,
-        bool useAsCollateral
-    ) external;
+    function setUserUseReserveAsCollateral(address asset, bool useAsCollateral) external;
 
     /**
      * @notice Function to liquidate a non-healthy position collateral-wise, with Health Factor below 1
@@ -496,9 +424,7 @@ interface IPool {
      * @return ltv The loan to value of The user
      * @return healthFactor The current health factor of the user
      */
-    function getUserAccountData(
-        address user
-    )
+    function getUserAccountData(address user)
         external
         view
         returns (
@@ -540,10 +466,7 @@ interface IPool {
      * @param asset The address of the underlying asset of the reserve
      * @param rateStrategyAddress The address of the interest rate strategy contract
      */
-    function setReserveInterestRateStrategyAddress(
-        address asset,
-        address rateStrategyAddress
-    ) external;
+    function setReserveInterestRateStrategyAddress(address asset, address rateStrategyAddress) external;
 
     /**
      * @notice Accumulates interest to all indexes of the reserve
@@ -567,37 +490,28 @@ interface IPool {
      * @param asset The address of the underlying asset of the reserve
      * @param configuration The new configuration bitmap
      */
-    function setConfiguration(
-        address asset,
-        DataTypesV3.ReserveConfigurationMap calldata configuration
-    ) external;
+    function setConfiguration(address asset, DataTypesV3.ReserveConfigurationMap calldata configuration) external;
 
     /**
      * @notice Returns the configuration of the reserve
      * @param asset The address of the underlying asset of the reserve
      * @return The configuration of the reserve
      */
-    function getConfiguration(
-        address asset
-    ) external view returns (DataTypesV3.ReserveConfigurationMap memory);
+    function getConfiguration(address asset) external view returns (DataTypesV3.ReserveConfigurationMap memory);
 
     /**
      * @notice Returns the configuration of the user across all the reserves
      * @param user The user address
      * @return The configuration of the user
      */
-    function getUserConfiguration(
-        address user
-    ) external view returns (DataTypesV3.UserConfigurationMap memory);
+    function getUserConfiguration(address user) external view returns (DataTypesV3.UserConfigurationMap memory);
 
     /**
      * @notice Returns the normalized income of the reserve
      * @param asset The address of the underlying asset of the reserve
      * @return The reserve's normalized income
      */
-    function getReserveNormalizedIncome(
-        address asset
-    ) external view returns (uint256);
+    function getReserveNormalizedIncome(address asset) external view returns (uint256);
 
     /**
      * @notice Returns the normalized variable debt per unit of asset
@@ -611,18 +525,14 @@ interface IPool {
      * @param asset The address of the underlying asset of the reserve
      * @return The reserve normalized variable debt
      */
-    function getReserveNormalizedVariableDebt(
-        address asset
-    ) external view returns (uint256);
+    function getReserveNormalizedVariableDebt(address asset) external view returns (uint256);
 
     /**
      * @notice Returns the state and configuration of the reserve
      * @param asset The address of the underlying asset of the reserve
      * @return The state and configuration data of the reserve
      */
-    function getReserveData(
-        address asset
-    ) external view returns (DataTypesV3.ReserveDataLegacy memory);
+    function getReserveData(address asset) external view returns (DataTypesV3.ReserveDataLegacy memory);
 
     /**
      * @notice Validates and finalizes an aToken transfer
@@ -668,10 +578,7 @@ interface IPool {
      * @notice Returns the PoolAddressesProvider connected to this contract
      * @return The address of the PoolAddressesProvider
      */
-    function ADDRESSES_PROVIDER()
-        external
-        view
-        returns (IPoolAddressesProvider);
+    function ADDRESSES_PROVIDER() external view returns (IPoolAddressesProvider);
 
     /**
      * @notice Updates the protocol fee on the bridging
@@ -689,57 +596,42 @@ interface IPool {
      * @param flashLoanPremiumTotal The total premium, expressed in bps
      * @param flashLoanPremiumToProtocol The part of the premium sent to the protocol treasury, expressed in bps
      */
-    function updateFlashloanPremiums(
-        uint128 flashLoanPremiumTotal,
-        uint128 flashLoanPremiumToProtocol
-    ) external;
+    function updateFlashloanPremiums(uint128 flashLoanPremiumTotal, uint128 flashLoanPremiumToProtocol) external;
 
     /**
      * @notice Replaces the current eMode collateralBitmap.
      * @param id The id of the category
      * @param collateralBitmap The collateralBitmap of the category
      */
-    function configureEModeCategoryCollateralBitmap(
-        uint8 id,
-        uint128 collateralBitmap
-    ) external;
+    function configureEModeCategoryCollateralBitmap(uint8 id, uint128 collateralBitmap) external;
 
     /**
      * @notice Replaces the current eMode borrowableBitmap.
      * @param id The id of the category
      * @param borrowableBitmap The borrowableBitmap of the category
      */
-    function configureEModeCategoryBorrowableBitmap(
-        uint8 id,
-        uint128 borrowableBitmap
-    ) external;
+    function configureEModeCategoryBorrowableBitmap(uint8 id, uint128 borrowableBitmap) external;
 
     /**
      * @notice Returns the label of an eMode category
      * @param id The id of the category
      * @return The label of the category
      */
-    function getEModeCategoryLabel(
-        uint8 id
-    ) external view returns (string memory);
+    function getEModeCategoryLabel(uint8 id) external view returns (string memory);
 
     /**
      * @notice Returns the collateralBitmap of an eMode category
      * @param id The id of the category
      * @return The collateralBitmap of the category
      */
-    function getEModeCategoryCollateralBitmap(
-        uint8 id
-    ) external view returns (uint128);
+    function getEModeCategoryCollateralBitmap(uint8 id) external view returns (uint128);
 
     /**
      * @notice Returns the borrowableBitmap of an eMode category
      * @param id The id of the category
      * @return The borrowableBitmap of the category
      */
-    function getEModeCategoryBorrowableBitmap(
-        uint8 id
-    ) external view returns (uint128);
+    function getEModeCategoryBorrowableBitmap(uint8 id) external view returns (uint128);
 
     /**
      * @notice Allows a user to use the protocol in eMode
@@ -767,17 +659,17 @@ interface IPool {
      *      To disable a liquidation grace period, any timestamp in the past works, like 0
      * @param asset The address of the underlying asset to set the liquidationGracePeriod
      * @param until Timestamp when the liquidation grace period will end
-     **/
+     *
+     */
     function setLiquidationGracePeriod(address asset, uint40 until) external;
 
     /**
      * @notice Returns the liquidation grace period of the given asset
      * @param asset The address of the underlying asset
      * @return Timestamp when the liquidation grace period will end
-     **/
-    function getLiquidationGracePeriod(
-        address asset
-    ) external view returns (uint40);
+     *
+     */
+    function getLiquidationGracePeriod(address asset) external view returns (uint40);
 
     /**
      * @notice Returns the total fee on flash loans
@@ -829,21 +721,14 @@ interface IPool {
      * @param referralCode Code used to register the integrator originating the operation, for potential rewards.
      *   0 if the action is executed directly by the user, without any middle-man
      */
-    function deposit(
-        address asset,
-        uint256 amount,
-        address onBehalfOf,
-        uint16 referralCode
-    ) external;
+    function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode) external;
 
     /**
      * @notice Returns the variableDebtToken address of a reserve.
      * @param asset The address of the underlying asset of the reserve
      * @return The address of the variableDebtToken
      */
-    function getReserveVariableDebtToken(
-        address asset
-    ) external view returns (address);
+    function getReserveVariableDebtToken(address asset) external view returns (address);
 
     /**
      * @notice Gets the address of the external FlashLoanLogic

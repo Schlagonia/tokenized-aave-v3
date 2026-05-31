@@ -12,12 +12,7 @@ contract TestOracle is Setup {
         super.setUp();
     }
 
-    function check_oracle(
-        address _oracle,
-        address _strategy,
-        address _user,
-        address _management
-    ) internal {
+    function check_oracle(address _oracle, address _strategy, address _user, address _management) internal {
         StrategyAprOracle oracle = StrategyAprOracle(_oracle);
 
         uint256 currentApr = oracle.aprAfterDebtChange(_strategy, 0);
@@ -36,9 +31,7 @@ contract TestOracle is Setup {
     }
 
     function test_oracle() public {
-        address oracle = address(
-            new StrategyAprOracle(address(WETH), address(v2_router))
-        );
+        address oracle = address(new StrategyAprOracle(address(WETH), address(v2_router)));
 
         vm.prank(strategy.management());
         strategy.setClaimRewards(true);

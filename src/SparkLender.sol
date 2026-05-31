@@ -50,7 +50,7 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
         REWARDS_CONTROLLER = A_TOKEN.getIncentivesController();
 
         // Make approve the lending pool for cheaper deposits.
-        asset.safeApprove(address(LENDING_POOL), type(uint256).max);
+        asset.forceApprove(address(LENDING_POOL), type(uint256).max);
 
         // Set uni swapper values.
         router = _router;
@@ -328,12 +328,13 @@ contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
      * @param _bool Wether or not rewards should be claimed and sold
      */
     function setClaimRewards(bool _bool) external onlyManagement {
+        if (_bool) require(address(REWARDS_CONTROLLER) != address(0), "REWARDS_CONTROLLER not set");
         claimRewards = _bool;
     }
 
     ///////////// DUTCH AUCTION FUNCTIONS \\\\\\\\\\\\\\\\\\
 
-    function setAuction(address _auction) external onlyEmergencyAuthorized {
+    function setAuction(address _auction) external onlyManagement {
         if (_auction != address(0)) {
             require(Auction(_auction).want() == address(asset), "wrong want");
         }
