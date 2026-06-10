@@ -10,7 +10,7 @@ contract SparkLenderFactory {
 
     event NewSparkLender(address indexed strategy, address indexed asset);
 
-    address public immutable SMS;
+    address public immutable SAM;
 
     address public immutable LENDING_POOL;
     address public immutable ROUTER;
@@ -27,7 +27,7 @@ contract SparkLenderFactory {
         address _management,
         address _performanceFeeRecipient,
         address _keeper,
-        address _sms,
+        address _sam,
         address _lendingPool,
         address _router,
         address _base
@@ -35,7 +35,7 @@ contract SparkLenderFactory {
         management = _management;
         performanceFeeRecipient = _performanceFeeRecipient;
         keeper = _keeper;
-        SMS = _sms;
+        SAM = _sam;
         LENDING_POOL = _lendingPool;
         ROUTER = _router;
         BASE = _base;
@@ -64,7 +64,7 @@ contract SparkLenderFactory {
 
         newStrategy.setPendingManagement(management);
 
-        newStrategy.setEmergencyAdmin(SMS);
+        newStrategy.setEmergencyAdmin(SAM);
 
         newStrategy.setPerformanceFee(0);
 

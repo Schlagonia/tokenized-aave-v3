@@ -7,23 +7,19 @@ import {SparkLenderFactory} from "../src/SparkLenderFactory.sol";
 
 // Deploy a contract to a deterministic address with create2 factory.
 contract Deploy is Script {
-    // Create X address.
-    Deployer public deployer = Deployer(0xba5Ed099633D3B313e4D5F7bdc1305d3c28ba5Ed);
-
-    address public initGov = 0x6f3cBE2ab3483EC4BA7B672fbdCa0E9B33F88db8;
+    address public management = 0x16388463d60FFE0661Cf7F1f31a7D658aC790ff7;
+    address public performanceFeeRecipient = 0x5A74Cb32D36f2f517DB6f7b0A0591e09b22cDE69;
+    address public keeper = 0x604e586F17cE106B64185A7a0d2c1Da5bAce711E;
+    address public sam = 0xe5e2Baf96198c56380dDD5E992D7d1ADa0e989c0;
+    address public lendingPool = 0xC13e21B648A5Ee794902342038FF3aDAB66BE987;
+    address public router = 0xE592427A0AEce92De3Edee1F18E0157C05861564;
+    address public base = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
 
     function run() external {
         vm.startBroadcast();
 
-        SparkLenderFactory factory = new SparkLenderFactory(
-            0x2D57bB1Ad5EaB2caacb50e8527eb0eE504f49e48,
-            0x2D57bB1Ad5EaB2caacb50e8527eb0eE504f49e48,
-            0x52605BbF54845f520a3E94792d019f62407db2f8,
-            0x01fE3347316b2223961B20689C65eaeA71348e93,
-            0xC13e21B648A5Ee794902342038FF3aDAB66BE987,
-            0xE592427A0AEce92De3Edee1F18E0157C05861564,
-            0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
-        );
+        SparkLenderFactory factory =
+            new SparkLenderFactory(management, performanceFeeRecipient, keeper, sam, lendingPool, router, base);
 
         console.log("Factory deployed at", address(factory));
 
@@ -36,18 +32,13 @@ contract Deploy is Script {
         address usdcLender = factory.newSparkLender(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
         console.log("USDC Lender deployed at", usdcLender);
 
-        address daiLender = factory.newSparkLender(0x6B175474E89094C44Da98b954EedeAC495271d0F);
-        console.log("DAI Lender deployed at", daiLender);
-
         address wethLender = factory.newSparkLender(0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2);
         console.log("WETH Lender deployed at", wethLender);
+
+        address usdtLender = factory.newSparkLender(0xdAC17F958D2ee523a2206206994597C13D831ec7);
+        console.log("USDT Lender deployed at", usdtLender);
 
         vm.stopBroadcast();
     }
 }
 
-contract Deployer {
-    event ContractCreation(address indexed newContract, bytes32 indexed salt);
-
-    function deployCreate2(bytes32 salt, bytes memory initCode) public payable returns (address newContract) {}
-}
