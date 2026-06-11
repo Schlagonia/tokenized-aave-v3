@@ -2,7 +2,6 @@
 pragma solidity ^0.8.18;
 
 import "./utils/Setup.sol";
-import {IPool} from "../../src/interfaces/Aave/V3/IPool.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract TestOperation is Setup {
@@ -63,9 +62,6 @@ contract TestOperation is Setup {
 
         assertEq(strategy.totalAssets(), _amount + profit);
 
-        // needed for profits to unlock
-        skip(strategy.profitMaxUnlockTime() - 1);
-
         assertEq(strategy.totalAssets(), _amount + profit);
         assertGt(strategy.pricePerShare(), beforePps);
 
@@ -108,9 +104,6 @@ contract TestOperation is Setup {
 
         assertEq(strategy.totalAssets(), _amount + profit);
 
-        // needed for profits to unlock
-        skip(strategy.profitMaxUnlockTime());
-
         assertEq(strategy.totalAssets(), _amount + profit);
         assertGt(strategy.pricePerShare(), beforePps);
 
@@ -127,7 +120,7 @@ contract TestOperation is Setup {
         }
     }
 
-    function test_withdraw_limit_airdrop(uint256 _amount) public {
+    function test_withdraw_limit_tracks_atoken_balance(uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
 
         // Deposit to the strategy
@@ -142,7 +135,7 @@ contract TestOperation is Setup {
 
         assertEq(strategy.totalAssets(), _amount);
 
-        address aToken = strategy.aToken();
+        address aToken = strategy.A_TOKEN();
 
         uint256 limit = strategy.availableWithdrawLimit(user);
 
@@ -151,13 +144,12 @@ contract TestOperation is Setup {
 
         deal(address(asset), WHALE, _amount);
         vm.prank(WHALE);
-        asset.transfer(aToken, _amount);
+        assertTrue(asset.transfer(aToken, _amount));
 
         uint256 newLimit = strategy.availableWithdrawLimit(user);
 
-        // Should not be affected
-        assertEq(newLimit, limit);
-        assertLt(limit, asset.balanceOf(aToken));
+        assertEq(newLimit, limit + _amount);
+        assertEq(newLimit, asset.balanceOf(aToken));
         assertGt(limit, _amount);
 
         skip(1000);
@@ -182,23 +174,9 @@ contract TestOperation is Setup {
 
         assertEq(strategy.totalAssets(), _amount);
 
-        address aToken = strategy.aToken();
-        address aTokenWhale = 0xb21DeB6D23D6Bd067D50c7e3EA6bc8874061342b;
-
-        uint256 limit = strategy.availableWithdrawLimit(user);
-
-        uint256 balance = ERC20(aToken).balanceOf(aTokenWhale);
-
-        assertGt(balance, limit); // Can't make illiquid for test
-
         uint256 toLeave = _amount / 10;
 
-        vm.prank(aTokenWhale);
-        IPool(LENDING_POOL).withdraw(
-            address(asset),
-            limit - toLeave,
-            aTokenWhale
-        );
+        deal(address(asset), strategy.A_TOKEN(), toLeave);
 
         assertEq(strategy.availableWithdrawLimit(user), toLeave);
         assertEq(strategy.maxWithdraw(user), toLeave);
@@ -208,9 +186,7 @@ contract TestOperation is Setup {
         vm.prank(user);
         strategy.redeem(maxRedeem, user, user);
 
-        deal(address(asset), WHALE, _amount);
-        vm.prank(WHALE);
-        asset.transfer(aToken, _amount);
+        deal(address(asset), strategy.A_TOKEN(), 0);
 
         assertEq(strategy.maxRedeem(user), 0);
 
@@ -222,7 +198,7 @@ contract TestOperation is Setup {
     function test_tend_trigger(uint256 _amount) public {
         _amount = bound(_amount, minFuzzAmount, maxFuzzAmount);
 
-        (bool trigger, ) = strategy.tendTrigger();
+        (bool trigger,) = strategy.tendTrigger();
         assertFalse(trigger);
 
         // Deposit to the strategy
@@ -232,30 +208,27 @@ contract TestOperation is Setup {
         strategy.deposit(_amount, user);
         vm.stopPrank();
 
-        (trigger, ) = strategy.tendTrigger();
+        (trigger,) = strategy.tendTrigger();
         assertFalse(trigger);
 
         skip(1 days);
 
-        (trigger, ) = strategy.tendTrigger();
+        (trigger,) = strategy.tendTrigger();
         assertFalse(trigger);
 
         vm.prank(keeper);
         strategy.report();
 
-        (trigger, ) = strategy.tendTrigger();
+        (trigger,) = strategy.tendTrigger();
         assertFalse(trigger);
 
-        // needed for profits to unlock
-        skip(strategy.profitMaxUnlockTime() - 1);
-
-        (trigger, ) = strategy.tendTrigger();
+        (trigger,) = strategy.tendTrigger();
         assertFalse(trigger);
 
         vm.prank(user);
         strategy.redeem(_amount, user, user);
 
-        (trigger, ) = strategy.tendTrigger();
+        (trigger,) = strategy.tendTrigger();
         assertFalse(trigger);
     }
 }

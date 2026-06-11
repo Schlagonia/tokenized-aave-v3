@@ -10,7 +10,8 @@ import {IPool} from "./IPool.sol";
  * @title IInitializableAToken
  * @author Aave
  * @notice Interface for the initialize function on AToken
- **/
+ *
+ */
 interface IInitializableAToken {
     /**
      * @dev Emitted when an aToken is initialized
@@ -22,7 +23,8 @@ interface IInitializableAToken {
      * @param aTokenName The name of the aToken
      * @param aTokenSymbol The symbol of the aToken
      * @param params A set of encoded parameters for additional initialization
-     **/
+     *
+     */
     event Initialized(
         address indexed underlyingAsset,
         address indexed pool,
@@ -61,7 +63,8 @@ interface IInitializableAToken {
  * @title IAToken
  * @author Aave
  * @notice Defines the basic interface for an AToken.
- **/
+ *
+ */
 interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
     /**
      * @dev Emitted during the transfer action
@@ -69,13 +72,9 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
      * @param to The recipient
      * @param value The amount being transferred
      * @param index The next liquidity index of the reserve
-     **/
-    event BalanceTransfer(
-        address indexed from,
-        address indexed to,
-        uint256 value,
-        uint256 index
-    );
+     *
+     */
+    event BalanceTransfer(address indexed from, address indexed to, uint256 value, uint256 index);
 
     /**
      * @notice Mints `amount` aTokens to `user`
@@ -85,12 +84,7 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
      * @param index The next liquidity index of the reserve
      * @return `true` if the the previous balance of the user was 0
      */
-    function mint(
-        address caller,
-        address onBehalfOf,
-        uint256 amount,
-        uint256 index
-    ) external returns (bool);
+    function mint(address caller, address onBehalfOf, uint256 amount, uint256 index) external returns (bool);
 
     /**
      * @notice Burns aTokens from `user` and sends the equivalent amount of underlying to `receiverOfUnderlying`
@@ -100,13 +94,9 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
      * @param receiverOfUnderlying The address that will receive the underlying
      * @param amount The amount being burned
      * @param index The next liquidity index of the reserve
-     **/
-    function burn(
-        address from,
-        address receiverOfUnderlying,
-        uint256 amount,
-        uint256 index
-    ) external;
+     *
+     */
+    function burn(address from, address receiverOfUnderlying, uint256 amount, uint256 index) external;
 
     /**
      * @notice Mints aTokens to the reserve treasury
@@ -120,19 +110,17 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
      * @param from The address getting liquidated, current owner of the aTokens
      * @param to The recipient
      * @param value The amount of tokens getting transferred
-     **/
-    function transferOnLiquidation(
-        address from,
-        address to,
-        uint256 value
-    ) external;
+     *
+     */
+    function transferOnLiquidation(address from, address to, uint256 value) external;
 
     /**
      * @notice Transfers the underlying asset to `target`.
      * @dev Used by the Pool to transfer assets in borrow(), withdraw() and flashLoan()
      * @param user The recipient of the underlying
      * @param amount The amount getting transferred
-     **/
+     *
+     */
     function transferUnderlyingTo(address user, uint256 amount) external;
 
     /**
@@ -142,7 +130,8 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
      * to receive LM rewards. In that case, `handleRepayment()` would perform the staking of the underlying asset.
      * @param user The user executing the repayment
      * @param amount The amount getting repaid
-     **/
+     *
+     */
     function handleRepayment(address user, uint256 amount) external;
 
     /**
@@ -157,34 +146,27 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
      * @param s Signature param
      * @param r Signature param
      */
-    function permit(
-        address owner,
-        address spender,
-        uint256 value,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external;
+    function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
+        external;
 
     /**
      * @dev Returns the address of the incentives controller contract
-     **/
-    function getIncentivesController()
-        external
-        view
-        returns (IRewardsController);
+     *
+     */
+    function getIncentivesController() external view returns (IRewardsController);
 
     /**
      * @notice Returns the address of the underlying asset of this aToken (E.g. WETH for aWETH)
      * @return The address of the underlying asset
-     **/
+     *
+     */
     function UNDERLYING_ASSET_ADDRESS() external view returns (address);
 
     /**
      * @notice Returns the address of the Aave treasury, receiving the fees on this aToken.
      * @return Address of the Aave treasury
-     **/
+     *
+     */
     function RESERVE_TREASURY_ADDRESS() external view returns (address);
 
     /**
@@ -198,7 +180,8 @@ interface IAToken is IERC20, IScaledBalanceToken, IInitializableAToken {
      * @notice Returns the nonce for owner.
      * @param owner The address of the owner
      * @return The nonce of the owner
-     **/
+     *
+     */
     function nonces(address owner) external view returns (uint256);
 
     /**

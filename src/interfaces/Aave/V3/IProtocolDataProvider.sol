@@ -10,18 +10,13 @@ interface IProtocolDataProvider {
         address tokenAddress;
     }
 
-    function ADDRESSES_PROVIDER()
-        external
-        view
-        returns (IPoolAddressesProvider);
+    function ADDRESSES_PROVIDER() external view returns (IPoolAddressesProvider);
 
     function getAllReservesTokens() external view returns (TokenData[] memory);
 
     function getAllATokens() external view returns (TokenData[] memory);
 
-    function getReserveConfigurationData(
-        address asset
-    )
+    function getReserveConfigurationData(address asset)
         external
         view
         returns (
@@ -42,13 +37,9 @@ interface IProtocolDataProvider {
      * @param asset The address of the underlying asset of the reserve
      * @return The eMode id of the reserve
      */
-    function getReserveEModeCategory(
-        address asset
-    ) external view returns (uint256);
+    function getReserveEModeCategory(address asset) external view returns (uint256);
 
-    function getReserveData(
-        address asset
-    )
+    function getReserveData(address asset)
         external
         view
         returns (
@@ -66,10 +57,7 @@ interface IProtocolDataProvider {
             uint40 lastUpdateTimestamp
         );
 
-    function getUserReserveData(
-        address asset,
-        address user
-    )
+    function getUserReserveData(address asset, address user)
         external
         view
         returns (
@@ -84,14 +72,8 @@ interface IProtocolDataProvider {
             bool usageAsCollateralEnabled
         );
 
-    function getReserveTokensAddresses(
-        address asset
-    )
+    function getReserveTokensAddresses(address asset)
         external
         view
-        returns (
-            address aTokenAddress,
-            address stableDebtTokenAddress,
-            address variableDebtTokenAddress
-        );
+        returns (address aTokenAddress, address stableDebtTokenAddress, address variableDebtTokenAddress);
 }

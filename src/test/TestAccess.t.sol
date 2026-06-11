@@ -2,7 +2,6 @@
 pragma solidity ^0.8.13;
 
 import "./utils/Setup.sol";
-import {IStrategyInterface} from "../../src/interfaces/IStrategyInterface.sol";
 
 contract TestAccess is Setup {
     function setUp() public override {
@@ -37,6 +36,22 @@ contract TestAccess is Setup {
         strategy.acceptManagement();
         assertEq(strategy.management(), newManagement);
         assertEq(strategy.pendingManagement(), address(0));
+    }
+
+    function testDepositsClosedByDefault() public {
+        address denied = makeAddr("denied");
+
+        assertFalse(strategy.open());
+        assertTrue(strategy.allowed(user));
+        assertFalse(strategy.allowed(denied));
+        assertEq(strategy.availableDepositLimit(denied), 0);
+        assertEq(strategy.maxDeposit(denied), 0);
+        assertGt(strategy.availableDepositLimit(user), 0);
+
+        vm.prank(management);
+        strategy.setAllowed(denied, true);
+
+        assertGt(strategy.availableDepositLimit(denied), 0);
     }
 
     function testOnlyManagementCanSetPerformanceFee() public {

@@ -1,110 +1,60 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.18;
 
-import {BaseStrategy, ERC20} from "@tokenized-strategy/BaseStrategy.sol";
+import {BaseHealthCheck, ERC20} from "@periphery/Bases/HealthCheck/BaseHealthCheck.sol";
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IAToken} from "./interfaces/Aave/V3/IAtoken.sol";
-import {IStakedAave} from "./interfaces/Aave/V3/IStakedAave.sol";
 import {IPool} from "./interfaces/Aave/V3/IPool.sol";
 import {IRewardsController} from "./interfaces/Aave/V3/IRewardsController.sol";
 
 // Swappers
 import {UniswapV3Swapper} from "@periphery/swappers/UniswapV3Swapper.sol";
-import {AuctionSwapper, Auction} from "@periphery/swappers/AuctionSwapper.sol";
+import {AuctionSwapper} from "@periphery/swappers/AuctionSwapper.sol";
+import {Auction} from "@periphery/Auctions/Auction.sol";
 
-contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
+contract SparkLender is BaseHealthCheck, UniswapV3Swapper, AuctionSwapper {
     using SafeERC20 for ERC20;
-
-    IStakedAave internal constant stkAave =
-        IStakedAave(0x4da27a545c0c5B758a6BA100e3a049001de870f5);
-    address internal constant AAVE =
-        address(0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9);
 
     // To get the Supply cap of an asset.
     uint256 internal constant SUPPLY_CAP_MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFF000000000FFFFFFFFFFFFFFFFFFFFFFFFFFFFF; // prettier-ignore
-    uint256 internal constant VIRTUAL_ACC_ACTIVE_MASK = 0xEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF; // prettier-ignore
     uint256 internal constant SUPPLY_CAP_START_BIT_POSITION = 116;
-    uint256 internal immutable decimals;
+    uint256 internal immutable DECIMALS;
 
     // The pool to deposit and withdraw through.
-    IPool public immutable lendingPool;
+    IPool public immutable LENDING_POOL;
 
     // The a Token specific rewards contract for claiming rewards.
-    IRewardsController public immutable rewardsController;
+    IRewardsController public immutable REWARDS_CONTROLLER;
 
     // The token that we get in return for deposits.
-    IAToken public immutable aToken;
-
-    // Local variable if the pool uses virtual accounting.
-    bool internal virtualAccounting;
+    IAToken public immutable A_TOKEN;
 
     // Bool to decide to try and claim rewards. Defaults to False.
     bool public claimRewards;
 
-    // If rewards should be sold through Auctions.
-    bool public useAuction = true;
-
-    // Mapping to be set by management for any reward tokens.
-    // This can be used to set different mins for different tokens
-    // or to set to uin256.max if selling a reward token is reverting
-    // to allow for reports to still work properly.
-    mapping(address => uint256) public minAmountToSellMapping;
-
-    constructor(
-        address _asset,
-        string memory _name,
-        address _lendingPool,
-        address _router,
-        address _base
-    ) BaseStrategy(_asset, _name) {
-        lendingPool = IPool(_lendingPool);
+    constructor(address _asset, string memory _name, address _lendingPool, address _router, address _base)
+        BaseHealthCheck(_asset, _name)
+    {
+        LENDING_POOL = IPool(_lendingPool);
 
         // Set the aToken based on the asset we are using.
-        aToken = IAToken(lendingPool.getReserveData(_asset).aTokenAddress);
-
-        // Make sure its a real token.
-        require(address(aToken) != address(0), "!aToken");
+        A_TOKEN = IAToken(LENDING_POOL.getReserveData(_asset).aTokenAddress);
 
         // Get aToken decimals for supply caps.
-        decimals = ERC20(address(aToken)).decimals();
+        DECIMALS = ERC20(address(A_TOKEN)).decimals();
 
         // Set the rewards controller
-        rewardsController = aToken.getIncentivesController();
-
-        // Set if using the virtual accounting.
-        setIsVirtualAccActive();
+        REWARDS_CONTROLLER = A_TOKEN.getIncentivesController();
 
         // Make approve the lending pool for cheaper deposits.
-        asset.safeApprove(address(lendingPool), type(uint256).max);
+        asset.forceApprove(address(LENDING_POOL), type(uint256).max);
 
-        // Set uni swapper values
-        // We will use the minAmountToSell mapping instead.
-        minAmountToSell = 0;
+        // Set uni swapper values.
         router = _router;
         base = _base;
-    }
-
-    /**
-     * @notice Set the uni fees for swaps.
-     * @dev External function available to management to set
-     * the fees used in the `UniswapV3Swapper.
-     *
-     * Any incentivized tokens will need a fee to be set for each
-     * reward token that it wishes to swap on reports.
-     *
-     * @param _token0 The first token of the pair.
-     * @param _token1 The second token of the pair.
-     * @param _fee The fee to be used for the pair.
-     */
-    function setUniFees(
-        address _token0,
-        address _token1,
-        uint24 _fee
-    ) external onlyManagement {
-        _setUniFees(_token0, _token1, _fee);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -123,7 +73,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * to deposit in the yield source.
      */
     function _deployFunds(uint256 _amount) internal override {
-        lendingPool.supply(address(asset), _amount, address(this), 0);
+        LENDING_POOL.supply(address(asset), _amount, address(this), 0);
     }
 
     /**
@@ -153,11 +103,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @param _amount, The amount of 'asset' to be freed.
      */
     function _freeFunds(uint256 _amount) internal override {
-        lendingPool.withdraw(
-            address(asset),
-            Math.min(aToken.balanceOf(address(this)), _amount),
-            address(this)
-        );
+        LENDING_POOL.withdraw(address(asset), Math.min(A_TOKEN.balanceOf(address(this)), _amount), address(this));
     }
 
     /**
@@ -182,17 +128,13 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @return _totalAssets A trusted and accurate account for the total
      * amount of 'asset' the strategy currently holds including idle funds.
      */
-    function _harvestAndReport()
-        internal
-        override
-        returns (uint256 _totalAssets)
-    {
+    function _harvestAndReport() internal override returns (uint256 _totalAssets) {
         if (claimRewards) {
             // Claim and sell any rewards to `asset`.
             _claimAndSellRewards();
         }
 
-        _totalAssets = aToken.balanceOf(address(this)) + balanceOfAsset();
+        _totalAssets = A_TOKEN.balanceOf(address(this)) + balanceOfAsset();
     }
 
     function balanceOfAsset() public view returns (uint256) {
@@ -203,17 +145,9 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @notice Used to claim any pending rewards and sell them to asset.
      */
     function _claimAndSellRewards() internal {
-        // Claim any pending stkAave.
-        _redeemAave();
-
-        //claim all rewards
         address[] memory assets = new address[](1);
-        assets[0] = address(aToken);
-        (address[] memory rewardsList, ) = rewardsController
-            .claimAllRewardsToSelf(assets);
-
-        // Start cooldown on any new stkAave.
-        _harvestStkAave();
+        assets[0] = address(A_TOKEN);
+        (address[] memory rewardsList,) = REWARDS_CONTROLLER.claimAllRewardsToSelf(assets);
 
         // If using the Auction contract we are done.
         if (useAuction) return;
@@ -223,66 +157,16 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         for (uint256 i = 0; i < rewardsList.length; ++i) {
             token = rewardsList[i];
 
-            if (token == address(asset) || token == address(aToken)) {
+            if (token == address(asset) || token == address(A_TOKEN)) {
                 continue;
-            } else if (token == address(stkAave)) {
-                // We swap Aave => asset
-                token = AAVE;
             }
 
             uint256 balance = ERC20(token).balanceOf(address(this));
 
-            if (balance > minAmountToSellMapping[token]) {
+            if (balance > minAmountToSell[token]) {
                 _swapFrom(token, address(asset), balance, 0);
             }
         }
-    }
-
-    function _redeemAave() internal {
-        if (!checkCooldown()) {
-            return;
-        }
-
-        uint256 stkAaveBalance = ERC20(address(stkAave)).balanceOf(
-            address(this)
-        );
-
-        if (stkAaveBalance > 0) {
-            stkAave.redeem(address(this), stkAaveBalance);
-        }
-    }
-
-    function checkCooldown() public view returns (bool) {
-        if (block.chainid != 1) return false;
-
-        uint256 cooldownStartTimestamp = IStakedAave(stkAave)
-            .stakersCooldowns(address(this))
-            .timestamp;
-
-        if (cooldownStartTimestamp == 0) return false;
-
-        uint256 cooldownSeconds = IStakedAave(stkAave).getCooldownSeconds();
-        uint256 UNSTAKE_WINDOW = IStakedAave(stkAave).UNSTAKE_WINDOW();
-        if (block.timestamp >= cooldownStartTimestamp + cooldownSeconds) {
-            return
-                block.timestamp - (cooldownStartTimestamp + cooldownSeconds) <=
-                UNSTAKE_WINDOW;
-        } else {
-            return false;
-        }
-    }
-
-    function _harvestStkAave() internal {
-        if (block.chainid != 1) return;
-
-        // request start of cooldown period
-        if (ERC20(address(stkAave)).balanceOf(address(this)) > 0) {
-            stkAave.cooldown();
-        }
-    }
-
-    function manualRedeemAave() external onlyKeepers {
-        _redeemAave();
     }
 
     /**
@@ -306,14 +190,12 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @param . The address that is depositing into the strategy.
      * @return . The available amount the `_owner` can deposit in terms of `asset`
      */
-    function availableDepositLimit(
-        address /*_owner*/
-    ) public view override returns (uint256) {
+    function availableDepositLimit(address _owner) public view override returns (uint256) {
+        uint256 baseLimit = super.availableDepositLimit(_owner);
+        if (baseLimit == 0) return 0;
+
         // Get the data configuration bitmap.
-        uint256 _data = lendingPool
-            .getReserveData(address(asset))
-            .configuration
-            .data;
+        uint256 _data = LENDING_POOL.getConfiguration(address(asset)).data;
 
         // Cannot deposit when paused or frozen.
         if (_isPaused(_data) || _isFrozen(_data)) return 0;
@@ -321,17 +203,17 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
         uint256 supplyCap = _getSupplyCap(_data);
 
         // If we have no supply cap.
-        if (supplyCap == 0) return type(uint256).max;
+        if (supplyCap == 0) return baseLimit;
 
         // Supply plus any already idle funds.
-        uint256 supply = aToken.totalSupply() + asset.balanceOf(address(this));
+        uint256 supply = A_TOKEN.totalSupply() + asset.balanceOf(address(this));
 
         // If we already hit the cap.
         if (supplyCap <= supply) return 0;
 
         // Return the remaining room.
         unchecked {
-            return supplyCap - supply;
+            return Math.min(baseLimit, supplyCap - supply);
         }
     }
 
@@ -340,9 +222,7 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @return The supply cap
      */
     function getSupplyCap() public view returns (uint256) {
-        _getSupplyCap(
-            lendingPool.getReserveData(address(asset)).configuration.data
-        );
+        return _getSupplyCap(LENDING_POOL.getConfiguration(address(asset)).data);
     }
 
     /**
@@ -350,18 +230,17 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      */
     function _getSupplyCap(uint256 _data) internal view returns (uint256) {
         // Get out the supply cap for the asset.
-        uint256 cap = (_data & ~SUPPLY_CAP_MASK) >>
-            SUPPLY_CAP_START_BIT_POSITION;
+        uint256 cap = (_data & ~SUPPLY_CAP_MASK) >> SUPPLY_CAP_START_BIT_POSITION;
         // Adjust to the correct decimals.
-        return cap * (10 ** decimals);
+        return cap * (10 ** DECIMALS);
     }
 
     /**
      * @dev Paused flag is at the 60th bit
      */
-    function _isPaused(uint256 _data) internal view returns (bool) {
+    function _isPaused(uint256 _data) internal pure returns (bool) {
         // Create a mask with only the 60th bit set
-        uint256 mask = 1 << 60; // Bitwise left shift by 59 positions
+        uint256 mask = 1 << 60; // Bitwise left shift by 60 positions
 
         // Perform bitwise AND operation to check if the 60th bit is 0.
         return (_data & mask) != 0;
@@ -370,36 +249,19 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
     /**
      * @dev Frozen flag is at the 57th bit.
      */
-    function _isFrozen(uint256 _data) internal view returns (bool) {
+    function _isFrozen(uint256 _data) internal pure returns (bool) {
         // Create a mask with only the 57th bit set
-        uint256 mask = 1 << 57; // Bitwise left shift by 56 positions
+        uint256 mask = 1 << 57; // Bitwise left shift by 57 positions
 
         // Perform bitwise AND operation to check if the 57th bit 0.
         return (_data & mask) != 0;
     }
 
     /**
-     * @dev Open function to set the local bool corresponding to
-     *   if the pool is using the virtual accounting method.
-     */
-    function setIsVirtualAccActive() public {
-        virtualAccounting =
-            (lendingPool
-                .getReserveDataExtended(address(asset))
-                .configuration
-                .data & ~VIRTUAL_ACC_ACTIVE_MASK) !=
-            0;
-    }
-
-    /**
      * @dev Gets the liquid balance that can be withdrawn from the pool
      */
     function _getLiquidity() internal view returns (uint256) {
-        if (virtualAccounting) {
-            return lendingPool.getVirtualUnderlyingBalance(address(asset));
-        } else {
-            return asset.balanceOf(address(aToken));
-        }
+        return asset.balanceOf(address(A_TOKEN));
     }
 
     /**
@@ -422,36 +284,43 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      */
     function availableWithdrawLimit(
         address /*_owner*/
-    ) public view override returns (uint256) {
+    )
+        public
+        view
+        override
+        returns (uint256)
+    {
         uint256 liquidity;
 
-        // IF pool is not paused
-        if (
-            !_isPaused(
-                lendingPool.getReserveData(address(asset)).configuration.data
-            )
-        ) {
-            // Get the tracked virtual balance
+        // Cannot withdraw from the pool when paused.
+        if (!_isPaused(LENDING_POOL.getConfiguration(address(asset)).data)) {
             liquidity = _getLiquidity();
         }
         return balanceOfAsset() + liquidity;
     }
 
+    function setMinAmountToSell(address _token, uint256 _amount) external onlyManagement {
+        _setMinAmountToSell(_token, _amount);
+    }
+
     /**
-     * @notice Set the `minAmountToSellMapping` for a specific `_token`.
-     * @dev This can be used by management to adjust wether or not the
-     * _claimAndSellRewards() function will attempt to sell a specific
-     * reward token. This can be used if liquidity is to low, amounts
-     * are to low or any other reason that may cause reverts.
+     * @notice Set the uni fees for swaps.
+     * @dev External function available to management to set
+     * the fees used in the `UniswapV3Swapper.
      *
-     * @param _token The address of the token to adjust.
-     * @param _amount Min required amount to sell.
+     * Any incentivized tokens will need a fee to be set for each
+     * reward token that it wishes to swap on reports.
+     *
+     * @param _token0 The first token of the pair.
+     * @param _token1 The second token of the pair.
+     * @param _fee The fee to be used for the pair.
      */
-    function setMinAmountToSellMapping(
-        address _token,
-        uint256 _amount
-    ) external onlyManagement {
-        minAmountToSellMapping[_token] = _amount;
+    function setUniFees(address _token0, address _token1, uint24 _fee) external onlyManagement {
+        _setUniFees(_token0, _token1, _fee);
+    }
+
+    function setBase(address _base) external onlyManagement {
+        base = _base;
     }
 
     /**
@@ -459,31 +328,36 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @param _bool Wether or not rewards should be claimed and sold
      */
     function setClaimRewards(bool _bool) external onlyManagement {
+        if (_bool) require(address(REWARDS_CONTROLLER) != address(0), "REWARDS_CONTROLLER not set");
         claimRewards = _bool;
     }
 
     ///////////// DUTCH AUCTION FUNCTIONS \\\\\\\\\\\\\\\\\\
 
-    function setAuction(address _auction) external onlyEmergencyAuthorized {
+    function setAuction(address _auction) external onlyManagement {
         if (_auction != address(0)) {
             require(Auction(_auction).want() == address(asset), "wrong want");
         }
-        auction = _auction;
+        _setAuction(_auction);
     }
 
-    function _auctionKicked(
-        address _token
-    ) internal virtual override returns (uint256 _kicked) {
-        require(_token != address(asset), "asset");
-        _kicked = super._auctionKicked(_token);
-        require(_kicked >= minAmountToSellMapping[_token], "too little");
+    function kickAuction(address _token) external virtual override onlyKeepers returns (uint256 _kicked) {
+        require(kickable(_token) >= minAmountToSell[_token], "too little");
+        _kicked = _kickAuction(_token);
+    }
+
+    function protectedTokens() public view virtual override returns (address[] memory) {
+        address[] memory tokens = new address[](2);
+        tokens[0] = address(asset);
+        tokens[1] = address(A_TOKEN);
+        return tokens;
     }
 
     /**
      * @notice Set if tokens should be sold through the dutch auction contract.
      */
     function setUseAuction(bool _useAuction) external onlyManagement {
-        useAuction = _useAuction;
+        _setUseAuction(_useAuction);
     }
 
     /**
@@ -508,6 +382,6 @@ contract AaveV3Lender is BaseStrategy, UniswapV3Swapper, AuctionSwapper {
      * @param _amount The amount of asset to attempt to free.
      */
     function _emergencyWithdraw(uint256 _amount) internal override {
-        _freeFunds(_amount);
+        _freeFunds(Math.min(_getLiquidity(), _amount));
     }
 }
